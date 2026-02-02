@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Local configuration (users should copy from examples)
+claude-desktop/config.json
+
+# Task exports (generated locally)
+*.csv
+!notion/tasks-database-template.csv
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+
+# Personal content (should never be committed)
+personal/
+private/

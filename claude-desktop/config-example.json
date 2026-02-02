@@ -1,0 +1,33 @@
+{
+  "mcpServers": {
+    "notion": {
+      "command": "npx",
+      "args": ["-y", "@notionhq/notion-mcp-server"],
+      "env": {
+        "OPENAPI_MCP_HEADERS": "{\"Authorization\": \"Bearer YOUR_NOTION_API_KEY\", \"Notion-Version\": \"2022-06-28\"}"
+      }
+    },
+    "filesystem": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@anthropics/model-context-protocol-servers",
+        "filesystem",
+        "C:/Users/YOUR_USERNAME/Documents",
+        "C:/Users/YOUR_USERNAME/pwkm"
+      ]
+    },
+    "windows-mcp": {
+      "command": "uvx",
+      "args": ["windows-mcp"]
+    },
+    "google-calendar": {
+      "command": "npx",
+      "args": ["-y", "@anthropic/google-calendar-mcp"],
+      "env": {
+        "GOOGLE_CLIENT_ID": "YOUR_GOOGLE_CLIENT_ID",
+        "GOOGLE_CLIENT_SECRET": "YOUR_GOOGLE_CLIENT_SECRET"
+      }
+    }
+  }
+}

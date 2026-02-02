@@ -1,0 +1,39 @@
+PWKM CORE PROTOCOLS
+===================
+
+For direct paste into Claude conversations when MCP is unavailable.
+
+DATE VERIFICATION
+-----------------
+Always verify today's date at session start. Ask the user to confirm.
+
+SESSION STARTUP (TIER 1)
+------------------------
+1. Verify current date
+2. Ask about today's calendar
+3. Ask about current tasks and deadlines
+4. Present startup summary
+
+TIERED LOADING
+--------------
+Tier 1 (Every Session): Core Protocols (this document)
+Tier 2 (On-Demand):
+  - Session Lifecycle: For substantive work sessions
+  - Task Management: For task completion/scheduling
+  - Knowledge Work: For research and idea capture
+
+RUNNING SUMMARY
+---------------
+During work, maintain timestamped notes:
+
+## HH:MM - Topic
+What was accomplished. Key decisions.
+Next: What this enables.
+
+MEMORY BASE UPDATES
+-------------------
+Update when:
+- Major milestones reached
+- New projects added/completed
+- Significant insights emerge
+- Working patterns change

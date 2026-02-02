@@ -1,0 +1,41 @@
+PWKM Reference Implementation License
+Copyright (c) 2026 Keith Mann
+
+SOFTWARE LICENSE (Code and Scripts)
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to use,
+copy, modify, and share the Software for personal and internal business 
+purposes, subject to the following conditions:
+
+1. The above copyright notice and this permission notice shall be included in
+   all copies or substantial portions of the Software.
+
+2. The Software may not be sold, sublicensed, or redistributed for commercial
+   purposes, nor may it be used as the basis for commercial products or 
+   services, without explicit written permission from the copyright holder.
+
+3. This license does not grant any rights to the PWKM methodology, system 
+   design, or conceptual framework, which remain the intellectual property 
+   of Keith Mann.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+
+DOCUMENTATION AND TEMPLATES LICENSE
+
+The documentation and templates in this repository are licensed under the
+Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International
+License (CC BY-NC-ND 4.0).
+
+You are free to share (copy and redistribute) the material in any medium or
+format under the following terms:
+
+- Attribution: You must give appropriate credit to Keith Mann.
+- NonCommercial: You may not use the material for commercial purposes.
+- NoDerivatives: You may not distribute modified versions of the material.
+
+Full license text: https://creativecommons.org/licenses/by-nc-nd/4.0/
+
+For commercial licensing inquiries: keith@keithmann.com
