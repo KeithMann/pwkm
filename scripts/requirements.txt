@@ -1,9 +1,9 @@
 # PWKM Python Dependencies
 # Install with: pip install -r requirements.txt
 
-# Core dependencies (standard library only for basic scripts)
-# No external dependencies required for task_manager.py and date_utils.py
+# Core dependencies for date_utils.py and task_manager.py
+python-dateutil>=2.8.0
+tzdata>=2024.1
 
-# Optional: For enhanced functionality
-# requests>=2.28.0      # If adding API integrations
-# python-dotenv>=1.0.0  # If using environment variables
+# Required for fetch_notion_tasks.py (Notion API export)
+requests>=2.28.0
