@@ -7,3 +7,9 @@ tzdata>=2024.1
 
 # Required for fetch_notion_tasks.py (Notion API export)
 requests>=2.28.0
+
+# Required for gcal_query.py and gcal_create.py (Google Calendar)
+python-dotenv>=1.0.0
+google-auth>=2.22.0
+google-auth-oauthlib>=1.0.0
+google-api-python-client>=2.90.0
