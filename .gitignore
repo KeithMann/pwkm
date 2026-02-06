@@ -24,6 +24,8 @@ desktop.ini
 
 # Local configuration (users should copy from examples)
 claude-desktop/config.json
+scripts/.env
+scripts/gcal_token.json
 
 # Task exports (generated locally)
 *.csv

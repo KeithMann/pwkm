@@ -20,7 +20,7 @@ Usage:
     python gcal_query.py today --raw         # Full API response (debugging)
     python gcal_query.py today -o output.txt # Write to file (recommended for MCP)
 
-The --output flag writes directly to file, bypassing stdout. This is
+The -o flag writes directly to file, bypassing stdout. This is
 recommended when running via Windows MCP Shell, where the WindowsApps
 Python shim may not capture stdout properly through PowerShell redirects.
 
