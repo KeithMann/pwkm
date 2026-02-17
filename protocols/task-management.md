@@ -1,165 +1,100 @@
-# Task Management Protocol
+# 📋 Task Management
 
-Protocols for task completion, scheduling, and synchronization between CSV and Notion.
-
----
-
-## Task Database Structure
-
-### CSV Columns
-| Column | Description |
-|--------|-------------|
-| Task | Task name/description |
-| Due Date | YYYY-MM-DD format |
-| Status | Active, Done, etc. |
-| Recurrence | daily, weekly, biweekly, monthly, quarterly, or blank |
-| Project | Associated project (optional) |
-| Priority | High, Medium, Low (optional) |
-
-### Why CSV?
-Notion MCP doesn't support filtered database queries. CSV export enables:
-- Single file read vs. 25+ API calls
-- Fast status checks at session startup
-- Local manipulation with Python scripts
+Protocols for task completion and CSV management. Load when completing tasks.
 
 ---
 
-## Task Completion Workflow
+## Task Completion Protocol
 
-### For Recurring Tasks
+**When user reports completing a task:**
 
-1. **Identify task**: Confirm which task is being completed
-2. **Run script**: `python task_manager.py complete "Task Name"`
-3. **Script action**: Calculates next occurrence, updates CSV
-4. **Update Notion**: Change the due date on the Notion task page
-5. **Confirm**: Verify both CSV and Notion reflect new date
+### Preferred Method: Windows MCP (Local Execution)
 
-### For One-Time Tasks
+**Step 1: Run task_manager.py via Windows MCP:**
 
-1. **Identify task**: Confirm which task is being completed
-2. **Run script**: `python task_manager.py complete "Task Name"`
-3. **Script action**: Marks task as Done in CSV
-4. **Update Notion**: Mark task complete or archive
-5. **Confirm**: Verify completion in both systems
+```powershell
+# Command pattern (run via cmd.exe to avoid PowerShell alias issues):
+cmd.exe /c "cd /d <working-dir> && <python-path> scripts/task_manager.py --json complete ""[task name]"" > task_output.txt 2>&1"
 
-### Completion Command
-```
-python task_manager.py complete "Clean Kitchen"
+# Then read the output:
+# Filesystem:read_text_file <working-dir>/task_output.txt
 ```
 
-Output:
+**Step 2: Update Notion** (REQUIRED - do not skip):
+- Search for the task page in Notion
+- Update the Due Date property to the new_due_date from the script output
+- Status remains "To Do" for recurring tasks
+
+**For multiple tasks:** Complete all task_manager.py calls first, then batch the Notion updates.
+
+**Key notes:**
+- Must use `cmd.exe` wrapper — PowerShell struggles with WindowsApps aliases in pipelines
+- Always use `--json` flag to avoid Unicode encoding issues with emojis
+- Use double quotes (`""task name""`) for task names containing parentheses
+- Output goes to `task_output.txt`, then read via Filesystem tool
+- **Both CSV and Notion must be updated** — CSV is the working copy, Notion is the source of truth
+
+### Fallback Method: Claude's Container
+
+If Windows MCP unavailable, copy scripts to Claude's container:
+
+```bash
+# Copy files from user's machine:
+Filesystem:copy_file_user_to_claude <scripts-dir>/task_manager.py
+Filesystem:copy_file_user_to_claude <scripts-dir>/date_utils.py
+Filesystem:copy_file_user_to_claude <working-dir>/notion_tasks.csv
+
+# Copy to writable directory and run:
+cp /mnt/user-data/uploads/*.py /home/claude/
+cp /mnt/user-data/uploads/notion_tasks.csv /home/claude/
+cd /home/claude && python task_manager.py complete "Task Name"
+
+# Then manually update user's CSV via Filesystem:write_file
 ```
-✓ Completed: Clean Kitchen
-  Rescheduled (weekly): 2026-02-09
-```
+
+### Recurring Patterns
+
+| Pattern | Example | Calculation |
+|---|---|---|
+| Weekly | Clean Kitchen | +7 days |
+| Monthly nth-weekday | Haircut (First Saturday) | Next occurrence of that weekday pattern |
+| Quarterly | Seasonal task | +3 months |
+| Yearly | Annual review | +1 year |
 
 ---
 
-## Recurring Task Patterns
+## Tasks Export System Reference
 
-### Supported Recurrence
-| Pattern | Behavior |
-|---------|----------|
-| daily | Next day |
-| weekly | +7 days |
-| biweekly | +14 days |
-| monthly | Same day next month |
-| quarterly | +3 months |
+### Directory Structure
 
-### Recurrence Logic
-- Calculates from current due date, not completion date
-- Monthly uses day 28 max to avoid month-end issues
-- Script handles calculation; human confirms reasonableness
+```
+<working-dir>/
+├── scripts/
+│   ├── fetch_notion_tasks.py   # Notion API export
+│   ├── date_utils.py           # Date calculations
+│   ├── task_manager.py         # Task operations
+│   └── .env                    # API credentials
+├── notion_tasks.csv            # Task data
+└── task_output.txt             # Script output (Windows MCP)
+```
+
+### Python Environment
+
+- **Path:** Configured via `PWKM_PYTHON` env var or system PATH
+- **Required packages:** python-dateutil, tzdata (see requirements.txt)
+
+### CSV Format
+
+Columns: Task Name, Due Date, Category, Frequency, Priority, Status, URL
+
+### Why CSV Instead of Notion API
+
+- Notion MCP doesn't support SQL queries or filtered views
+- Individual fetches would require 25+ API calls at startup
+- CSV provides complete data in single file read
+- Already sorted by due date
 
 ---
 
-## Task Rescheduling
-
-### Manual Reschedule
-```
-python task_manager.py reschedule "Task Name" "2026-02-15"
-```
-
-### When to Reschedule
-- Task cannot be completed by due date
-- Priorities have shifted
-- Dependencies not met
-- Blocked by external factors
-
-### After Rescheduling
-Always update the corresponding Notion page to maintain sync.
-
----
-
-## Task Status Check
-
-### Daily Check (Session Startup)
-```
-python task_manager.py status
-```
-
-Shows:
-- ⚠️ Overdue tasks with days overdue
-- 📅 Tasks due today
-- 📆 Upcoming tasks (next 7 days)
-
-### Full List
-```
-python task_manager.py list
-```
-
-Shows all tasks with dates and flags.
-
----
-
-## CSV-Notion Synchronization
-
-### Source of Truth
-- **CSV**: For quick reads and script manipulation
-- **Notion**: For full task details, notes, project links
-
-### Sync Protocol
-After any CSV change:
-1. Note which tasks changed
-2. Update corresponding Notion pages
-3. Verify consistency
-
-### Export Fresh CSV
-When Notion has manual changes:
-1. Export database to CSV from Notion
-2. Replace local CSV file
-3. Verify with `task_manager.py list`
-
----
-
-## Weekly Task Audit
-
-Performed first session of each week:
-
-1. **Review overdue**: Reschedule or complete
-2. **Check upcoming**: Realistic given calendar?
-3. **Verify sync**: CSV matches Notion
-4. **Clean up**: Archive completed one-time tasks
-5. **Plan week**: Note key deliverables
-
----
-
-## Task Creation
-
-### In Notion
-1. Add row to Tasks database
-2. Set all required fields
-3. Export updated CSV
-
-### Quick Add (CSV only)
-For temporary tracking, add directly to CSV. Sync to Notion when convenient.
-
----
-
-## Emergency Task Handling
-
-When task is urgent and not in system:
-1. Handle the task
-2. Document in running summary
-3. Add to system afterward if recurring
-4. Note in session summary
+*Adapt paths and environment variables to your own setup.*
+*See setup-guide.md for configuration details.*

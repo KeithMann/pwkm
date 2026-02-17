@@ -171,6 +171,19 @@ The system that emerged embodies several key principles, drawn from systems thin
 - **Tier 2 (On-demand)**: Session lifecycle, task management, knowledge work, specialized workflows
 - **Tier 3 (Explicit request)**: Research library, work patterns, session summaries
 
+### 9. Mechanical Enforcement
+
+**Principle**: Externalize checks to scripts rather than relying on Claude's memory or mental arithmetic.
+
+**Rationale**: Claude cannot reliably track elapsed time, remember to perform periodic checks, or maintain state across compaction boundaries. Scripts with persistent state files provide mechanical enforcement.
+
+**Implementation**:
+- `session_timer.py` tracks 30-minute running summary clock via JSON state files
+- `startup.py` consolidates 5-6 separate startup checks into one call
+- `gcal_query.py --classify` compares events against current time mechanically
+- `date_utils.py` handles all date arithmetic (Claude never does mental date math)
+- Audit triggers tracked persistently in `audit_state.json`
+
 ---
 
 ## System Architecture
@@ -1014,9 +1027,18 @@ For commercial licensing inquiries, contact the author.
 
 ---
 
-**Document Version**: 3.0
+**Document Version**: 4.0
 **Original Date**: December 24, 2025
-**Updated**: February 2, 2026
+**Updated**: February 17, 2026
+
+**Changes in v4.0**:
+- Added consolidated startup via `startup.py` (replaces multi-step manual sequence)
+- Added mechanical enforcement principle and `session_timer.py`
+- Added calendar-aware classification (`gcal_query.py --classify`)
+- Updated running summary protocol with proactive triggers and externalized clock
+- Added `date_utils.py` nth-weekday calculations for recurring task patterns
+- Updated task_manager.py with task-name pattern parsing
+- Added weekly audit and monthly review tracking via persistent state files
 
 **Changes in v3.0**:
 - Reorganized for tiered protocol architecture

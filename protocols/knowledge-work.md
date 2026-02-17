@@ -1,191 +1,101 @@
-# Knowledge Work Protocol
+# 📋 Knowledge Work
 
-Protocols for idea capture, research documentation, and theme identification.
+Protocols for research, idea capture, and cross-project synthesis. Load when doing intellectual/creative work.
 
 ---
 
 ## Idea Capture Protocol
 
-### Trigger
-User says "I have an idea about..." or similar.
+**When user says "I have an idea":**
 
-### Capture Workflow
+1. **Engage in conversation:**
+    - Clarifying questions
+    - Explore what sparked it
+    - Discuss applications
+    - Identify core theme
 
-1. **Initial capture**: Note the idea as stated
-2. **Clarifying questions**: 
-   - What sparked this idea?
-   - How does it connect to current work?
-   - What would it look like in practice?
-3. **Explore implications**: Discuss applications and extensions
-4. **Identify core theme**: What's the essential insight?
-5. **Document**: Add to Ideas and Interests page
-6. **Connect**: Suggest links to active projects
+2. **Document in Ideas and Interests:**
+    - Essence of the idea
+    - Category
+    - Connections to projects/other ideas
+    - Status
 
-### Documentation Format
+3. **Look for patterns:**
+    - Relation to other ideas
+    - Connection to existing projects
+    - New interest area emerging
+    - Combination potential
 
-```markdown
-## [Idea Title]
-**Date**: YYYY-MM-DD
-**Sparked by**: [Context]
+4. **Suggest next steps** if appropriate
 
-### The Idea
-[Clear statement of the insight]
+**Periodic Review (First week of each month):**
 
-### Implications
-[What this means, why it matters]
+During the weekly session summary audit, if it's the first week of the month, also review Ideas and Interests for:
+- Ideas that have matured or gained new connections since capture
+- Ideas ready to develop into project work
+- Patterns across recent ideas suggesting new themes
 
-### Connections
-- [Related project 1]
-- [Related theme]
-- [Potential applications]
-
-### Status
-[New / Exploring / Integrated / Archived]
-```
-
-### Ideas Worth Documenting
-- Novel connections between disparate topics
-- Reframings that clarify existing problems
-- Potential solutions to active challenges
-- Observations that might become themes
+This is checked as part of the weekly audit trigger — not a separate mechanism.
 
 ---
 
-## Research Documentation
+## Research Note Protocol
 
-### When Reading Papers/Books
+**Cross-referencing:** Track which papers/books uploaded to which projects
 
-1. **Capture metadata**: Title, author, date, source
-2. **Note key claims**: Main arguments or findings
-3. **Extract quotes**: Significant passages (with page numbers)
-4. **Personal response**: Reactions, questions, connections
-5. **Project relevance**: Which projects does this inform?
+**Reminder:** If paper referenced but not uploaded where needed, remind user
 
-### Research Note Format
+**Library Tracking:** Research Library with cross-reference index showing availability
 
-```markdown
-## [Title]
-**Author**: [Name]
-**Date Read**: YYYY-MM-DD
-**Source**: [Link or location]
-
-### Summary
-[2-3 sentence overview]
-
-### Key Points
-- [Main argument 1]
-- [Main argument 2]
-- [Significant finding]
-
-### Notable Quotes
-> "[Quote]" (p. XX)
-
-### Connections
-- Relates to [Project/Theme]
-- Challenges/supports [existing idea]
-
-### Questions Raised
-- [Question for further exploration]
-```
-
-### Research Library Organization
-
-Hierarchical by project area:
-```
-Research Library/
-  ├── [Project Area 1]/
-  │   ├── [Subtopic A]/
-  │   └── [Subtopic B]/
-  ├── [Project Area 2]/
-  └── Cross-Reference Index
-```
+**Master Bibliography Maintenance:**
+- ALWAYS maintain alphabetical order by author surname, then date, then title
+- Insert new entries in correct position
+- This is the single source of truth for bibliographic information
 
 ---
 
-## Theme Identification
+## Project Context Recognition Protocol
 
-### What Are Themes?
-Recurring intellectual patterns that appear across multiple projects. They represent deeper commitments or interests that unify seemingly disparate work.
+**When writing a running summary entry, tag it with a project context** (e.g., "Project: Research Paper" or "Project: PWKM"). If consecutive entries are tagged with the same project and the project page hasn't been fetched, suggest: "I notice we've been working on [Project] for a while — should I fetch the project page for context?"
 
-### Theme Recognition Signs
-- Same concept appearing in different projects
-- Repeated use of particular frameworks
-- Consistent critiques or positions
-- Analogies that keep proving useful
+Let the user decide:
+- Yes → fetch project page
+- No → continue as-is
+- "Let's switch to project chat"
 
-### Documenting Themes
-
-In Recurring Themes page:
-```markdown
-## [Theme Name]
-
-### Description
-[What this theme is about]
-
-### Manifestations
-- In [Project 1]: [How it appears]
-- In [Project 2]: [How it appears]
-- In [Ideas]: [Related ideas]
-
-### Key Frameworks
-[Associated mental models or frameworks]
-
-### Evolution
-[How understanding of this theme has developed]
-```
-
-### Theme Maintenance
-- Review quarterly
-- Add new manifestations as discovered
-- Note when themes merge or split
-- Archive themes that no longer apply
+This piggybacks on the running summary mechanism rather than requiring independent time-tracking. The Specialized Input Recognition table in Core Protocols also catches explicit project work at input time.
 
 ---
 
-## Cross-Project Synthesis
+## Memory Base Loading Protocol
 
-### When to Synthesize
-- Working on one project reveals insight relevant to another
-- Research applies to multiple active projects
-- Theme appears in new context
+**Loading context for project work:**
 
-### Synthesis Protocol
+1. Fetch Memory Base for comprehensive background
+2. Fetch specific project page for current details
+3. Identify which Memory Base aspects are most relevant
+4. Cross-reference with Research Library, Themes as needed
 
-1. **Note the connection**: Document where insight originated
-2. **Trace implications**: What does this mean for each project?
-3. **Update relevant pages**: Add cross-references
-4. **Update themes**: If connection reveals deeper pattern
-
-### Documentation
-- Add to Ideas and Interests if novel
-- Update project pages with cross-references
-- Note in session summary
+**When to update Memory Base:**
+- Major project milestones
+- New recurring themes identified
+- Significant frameworks emerge
+- Working methods evolve
+- New tools adopted
 
 ---
 
-## Knowledge Work Session Flow
+## Session Summary Import Protocol
 
-### Deep Work Session
+**When user imports summary to PWKM or summary created within PWKM:**
 
-1. **Load context**: Fetch project page and related materials
-2. **Review state**: What was the last work? What's next?
-3. **Set intention**: What will this session accomplish?
-4. **Work**: Focus on the substantive task
-5. **Capture**: Document insights as they emerge
-6. **Update**: Refresh project page with progress
+1. Review for content/themes → Update Recurring Themes if needed
+2. Check Ideas document for relevant connections
+3. Highlight relevant ideas to user
+4. Update cross-references in Ideas if new ones identified
+5. Update Work Patterns with session data
 
-### Research Session
+---
 
-1. **Identify sources**: What needs to be read/reviewed?
-2. **Active reading**: Engage with material, take notes
-3. **Synthesize**: How does this connect to existing work?
-4. **Document**: Update Research Library
-5. **Propagate**: Update relevant project pages
-
-### Exploration Session
-
-1. **Start with question**: What are we exploring?
-2. **Follow threads**: Let curiosity guide
-3. **Capture ideas**: Document as they emerge
-4. **Identify themes**: What patterns appear?
-5. **Connect**: Link to existing work
+*Adapt Notion page references and project names to your own environment.*
+*See setup-guide.md for configuration details.*
