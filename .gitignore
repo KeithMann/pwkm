@@ -26,6 +26,7 @@ desktop.ini
 claude-desktop/config.json
 scripts/.env
 scripts/news_feeds.json
+scripts/activitywatch_categories.json
 scripts/gcal_token.json
 
 # Task exports (generated locally)

@@ -1,0 +1,33 @@
+{
+  "app_categories": {
+    "Code.exe": "Programming / VS Code",
+    "WindowsTerminal.exe": "Terminal",
+    "WINWORD.EXE": "Writing / Word",
+    "Slack.exe": "Communication / Slack",
+    "explorer.exe": "File Management"
+  },
+  "browser_apps": [
+    "msedge.exe",
+    "chrome.exe",
+    "firefox.exe",
+    "brave.exe"
+  ],
+  "browser_title_rules": [
+    [
+      "github",
+      "GitHub (web)"
+    ],
+    [
+      "stack overflow",
+      "Stack Overflow"
+    ],
+    [
+      "youtube",
+      "YouTube"
+    ],
+    [
+      "reddit",
+      "Reddit"
+    ]
+  ]
+}
