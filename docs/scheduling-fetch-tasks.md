@@ -20,10 +20,14 @@ The `fetch_notion_tasks.py` script exports your Notion Tasks & To-Dos database t
    - **Trigger:** Daily, at a time before you typically start work (e.g., 6:00 AM)
    - **Action:** Start a program
 
-4. For the program/script, enter your Python path:
+4. For the program/script, enter the full path to your Python interpreter:
    ```
-   C:\Users\YOUR_USERNAME\AppData\Local\Microsoft\WindowsApps\python.exe
+   C:\Users\YOUR_USERNAME\AppData\Local\Programs\Python\Python3XX\python.exe
    ```
+   Run `where python` to find it. Do **not** use a path under
+   `AppData\Local\Microsoft\WindowsApps\`. That is the Microsoft Store alias
+   shim; it does not resolve reliably from Task Scheduler and it does not
+   capture stdout properly when run non-interactively.
 
 5. For arguments:
    ```
