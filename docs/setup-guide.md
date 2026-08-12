@@ -6,11 +6,11 @@ This guide walks you through setting up your own PWKM system from scratch.
 
 Before starting, ensure you have:
 
-- **Windows 11** (macOS/Linux possible with modifications)
+- **Windows** for the shell scripts as published (macOS and Linux possible with modifications; the protocols and Notion structure are platform-independent)
 - **Python 3.10+** installed and accessible from command line
 - **Claude Desktop** application installed
 - **Notion account** (free tier works fine)
-- **Claude Pro or Team subscription** (for extended conversations)
+- **A Claude plan that supports Projects and connectors** (check current plan features; these have changed over time)
 
 ## Step 1: Set Up Notion
 
@@ -85,11 +85,19 @@ pip install requests python-dateutil tzdata
 
 ### Install MCP Servers
 
-PWKM requires these MCP servers configured in Claude Desktop:
+PWKM needs one MCP server configured locally, plus connectors you enable in
+the Claude interface:
 
-1. **Notion MCP** — For reading/writing Notion pages
-2. **Filesystem MCP** — For accessing local files (task CSV, scripts)
-3. **Windows MCP** (optional) — For system automation on Windows
+1. **windows-mcp** — configured in `claude_desktop_config.json`. Runs shell
+   commands, Python scripts, and local file access.
+2. **Notion** — a built-in connector, enabled in Claude rather than in a config
+   file.
+3. **Gmail / Microsoft 365 / Google Calendar** — built-in connectors, optional.
+
+A filesystem MCP server is **not** required; windows-mcp covers file access.
+A calendar MCP server is **not** required for the startup report either: the
+calendar scripts call the Google API directly with OAuth credentials from
+`.env`. See `claude-desktop/setup.md`.
 
 ### Configure Claude Desktop
 

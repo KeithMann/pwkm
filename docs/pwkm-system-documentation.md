@@ -639,21 +639,27 @@ This section provides concrete templates others can use to build similar systems
 ### Prerequisites
 
 **Platform Requirements**:
-- **Windows 11** with administrator access
-- **Claude Desktop** application (not web interface)
-- **Python 3.10+** installed and accessible from command line
+- **Windows** for the shell scripts as published. Administrator access is not needed.
+- **Claude Desktop** application, for the local shell server. A web or mobile session runs a reduced startup instead; see the reduced-startup section of the core protocols.
+- **Python 3.10+** installed and on PATH
+- **`uv` / `uvx`**, which runs windows-mcp
 
-**Claude Desktop MCP Servers**:
-The system relies on Model Context Protocol (MCP) servers to connect Claude to external tools:
-- **Notion MCP**: Required for all Notion integration (fetching pages, updating content, searching)
-- **Filesystem MCP**: Required for reading/writing local files (running summaries, CSV task exports)
-- **Windows MCP**: Required for desktop automation, shell commands, and Python script execution
-- **Google Calendar MCP**: Required for calendar integration in startup protocol
+**MCP servers and connectors**:
+One server is configured locally; the rest are connectors enabled in the Claude interface.
+- **windows-mcp** (local): shell commands, Python script execution, local file access
+- **Notion** (connector): all Notion integration
+- **Gmail / Microsoft 365 / Google Calendar** (connectors, optional)
+
+A filesystem MCP server is **not** required. A calendar MCP server is **not**
+required for the startup report: `gcal_query.py` and `gcal_create.py` call the
+Google Calendar API directly using OAuth credentials from `.env`. Claude's
+calendar connector and the scripts' calendar access are independent paths that
+fail independently.
 
 **Accounts and Services**:
 - **Notion account** (free tier works fine)
-- **Claude Pro or Team account** (for Projects feature and MCP support)
-- **Google account** (for calendar integration)
+- **A Claude plan supporting Projects and connectors** (plan features have changed over time; check current documentation)
+- **Google account** (only if you want calendar in the startup report)
 
 **Other Requirements**:
 - **Multiple concurrent projects or work streams** (this system shines with complexity)

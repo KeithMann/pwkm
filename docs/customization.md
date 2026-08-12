@@ -160,7 +160,7 @@ Keep it focused. If the Memory Base gets too large:
 
 **Obsidian instead of Notion:**
 - Use markdown files instead of Notion pages
-- Filesystem MCP for all access
+- Local file access via windows-mcp, or the equivalent shell tooling on your platform
 - Adapt database concepts to folder structures or frontmatter
 
 **Roam/Logseq:**
@@ -213,7 +213,7 @@ Common additions:
 
 ### Script Location
 
-Keep scripts where Claude can access them via Filesystem MCP. Common locations:
+Keep scripts where Claude can reach them through its shell tooling. Common locations:
 - With Claude Desktop config
 - In a dedicated tools directory
 - In the PWKM repo (for version control)
@@ -266,7 +266,7 @@ Adapting PWKM for team use:
 ### Integration Depth
 
 Start simple, add integrations as needed:
-1. Basic: Notion + Filesystem
+1. Basic: Notion + local shell access
 2. Standard: Add Calendar
 3. Advanced: Add email, Slack, time tracking
 4. Full: Custom APIs, automation
