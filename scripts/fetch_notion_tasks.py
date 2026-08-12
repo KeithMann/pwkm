@@ -6,10 +6,11 @@ This script exports your Tasks & To-Dos database from Notion to a local CSV file
 The CSV is used by task_manager.py for quick task lookups without API calls.
 
 Configuration:
-    API credentials are loaded from a .env file in the same directory.
-    Create a .env file with:
+    Reads NOTION_API_KEY and NOTION_DATABASE_ID. Either set them as real
+    environment variables, or put them in a .env file beside this script:
         NOTION_API_KEY=your_api_key_here
         NOTION_DATABASE_ID=your_database_id_here
+    The real environment wins if both are present. See .env.example.
 
 Usage:
     python fetch_notion_tasks.py
@@ -25,50 +26,34 @@ from datetime import datetime
 import os
 from pathlib import Path
 
-# Load environment variables from .env file
-def load_env_file(env_path: Path) -> dict:
-    """
-    Load environment variables from a .env file.
+from pwkm_env import load_env
 
-    Simple .env parser that handles KEY=VALUE format.
-    For production, consider using python-dotenv package.
-    """
-    env_vars = {}
-    if not env_path.exists():
-        raise FileNotFoundError(
-            f".env file not found at {env_path}\n"
-            f"Please create a .env file based on .env.example"
-        )
-
-    with open(env_path, 'r') as f:
-        for line in f:
-            line = line.strip()
-            # Skip empty lines and comments
-            if not line or line.startswith('#'):
-                continue
-            # Parse KEY=VALUE
-            if '=' in line:
-                key, value = line.split('=', 1)
-                env_vars[key.strip()] = value.strip()
-
-    return env_vars
-
-# Get script directory and load .env file
 SCRIPT_DIR = Path(__file__).parent
-env_vars = load_env_file(SCRIPT_DIR / '.env')
 
-# Configuration from environment variables
-NOTION_API_KEY = env_vars.get('NOTION_API_KEY')
-DATABASE_ID = env_vars.get('NOTION_DATABASE_ID')
-OUTPUT_FILE = "notion_tasks.csv"  # Will be saved in the same directory as the script
+# Populate os.environ from .env (if present) without overriding real
+# environment variables. Replaces a bespoke parser that loaded .env into a
+# local dict only, so nothing else in the system could see the values.
+load_env()
 
-# Validate required configuration
+# Configuration
+NOTION_API_KEY = os.environ.get("NOTION_API_KEY")
+DATABASE_ID = os.environ.get("NOTION_DATABASE_ID")
+OUTPUT_FILE = "notion_tasks.csv"  # Saved in the same directory as the script
+
 if not NOTION_API_KEY or not DATABASE_ID:
-    raise ValueError(
-        "Missing required configuration!\n"
-        "Please ensure .env file contains:\n"
-        "  NOTION_API_KEY=...\n"
-        "  NOTION_DATABASE_ID=..."
+    missing = [
+        name
+        for name, value in (
+            ("NOTION_API_KEY", NOTION_API_KEY),
+            ("NOTION_DATABASE_ID", DATABASE_ID),
+        )
+        if not value
+    ]
+    raise SystemExit(
+        "Missing required configuration: " + ", ".join(missing) + "\n"
+        "Set them as environment variables, or add them to a .env file at:\n"
+        "  " + str(SCRIPT_DIR / ".env") + "\n"
+        "See .env.example for the expected format."
     )
 
 # Notion API endpoint

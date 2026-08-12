@@ -40,6 +40,13 @@ except ImportError as e:
     print(f"Missing required package: {e}")
     sys.exit(1)
 
+# Load .env before any module-level os.environ read below. Doing this
+# later, or inside a function, is too late: the constants are evaluated
+# at import time. See pwkm_env.py.
+from pwkm_env import load_env
+
+load_env()
+
 SCOPES = ['https://www.googleapis.com/auth/calendar.events']
 SCRIPT_DIR = Path(__file__).parent
 ENV_FILE = SCRIPT_DIR / '.env'

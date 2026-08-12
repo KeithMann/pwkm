@@ -33,6 +33,13 @@ except ImportError as e:
     print("  pip install python-dotenv google-auth google-auth-oauthlib google-api-python-client --break-system-packages")
     sys.exit(1)
 
+# Load .env before any module-level os.environ read below. Doing this
+# later, or inside a function, is too late: the constants are evaluated
+# at import time. See pwkm_env.py.
+from pwkm_env import load_env
+
+load_env()
+
 # Scopes required for calendar access
 SCOPES = ['https://www.googleapis.com/auth/calendar.events']
 

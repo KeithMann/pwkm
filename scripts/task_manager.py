@@ -31,6 +31,13 @@ from zoneinfo import ZoneInfo
 from dateutil.relativedelta import relativedelta
 from typing import Optional, List, Dict, Any
 
+# Load .env before any module-level os.environ read below. Doing this
+# later, or inside a function, is too late: the constants are evaluated
+# at import time. See pwkm_env.py.
+from pwkm_env import load_env
+
+load_env()
+
 # Configuration
 EASTERN = ZoneInfo(os.environ.get("LOCAL_TIMEZONE", "America/Toronto"))
 # Task CSV location. Set PWKM_TASKS_CSV, or leave unset to use the default

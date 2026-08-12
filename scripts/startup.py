@@ -38,6 +38,13 @@ from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
+# Load .env before any module-level os.environ read below. Doing this
+# later, or inside a function, is too late: the constants are evaluated
+# at import time. See pwkm_env.py.
+from pwkm_env import load_env
+
+load_env()
+
 TZ = ZoneInfo(os.environ.get("LOCAL_TIMEZONE", "America/New_York"))
 SCRIPT_DIR = Path(__file__).parent
 PYTHON = os.environ.get("PWKM_PYTHON", sys.executable)
