@@ -1,0 +1,73 @@
+{
+  "general": {
+    "limit": 5,
+    "feeds": {
+      "BBC": "https://feeds.bbci.co.uk/news/rss.xml",
+      "Guardian": "https://www.theguardian.com/world/rss",
+      "NPR": "https://feeds.npr.org/1001/rss.xml"
+    },
+    "exclude_categories": [
+      "sport",
+      "sports",
+      "football",
+      "soccer",
+      "cricket",
+      "tennis",
+      "rugby",
+      "basketball",
+      "baseball",
+      "hockey",
+      "golf",
+      "entertainment",
+      "celebrity",
+      "celebrities",
+      "gossip",
+      "travel",
+      "tourism",
+      "lifestyle",
+      "fashion",
+      "beauty",
+      "food & drink",
+      "cooking",
+      "recipe",
+      "style",
+      "wellness",
+      "human interest",
+      "feel good",
+      "tv",
+      "film",
+      "movies",
+      "music",
+      "television",
+      "streaming",
+      "gaming",
+      "games",
+      "video games",
+      "personal finance",
+      "dating",
+      "relationships"
+    ],
+    "exclude_title_pattern": "\\b(?:oscars?|grammy|emmy|golden\\s+globe|bafta|super\\s+bowl|world\\s+cup|premier\\s+league|champions\\s+league|nfl|nba|nhl|mlb|wnba|mls|wimbledon|recipe|horoscope|zodiac|feel.good|heartwarming|adorable|quiz:|poll:)\\b"
+  },
+  "tech": {
+    "limit": 3,
+    "feeds": {
+      "Hacker News": "https://hnrss.org/frontpage",
+      "Ars Technica": "https://feeds.arstechnica.com/arstechnica/index",
+      "The Verge": "https://www.theverge.com/rss/index.xml"
+    },
+    "exclude_categories": [
+      "deals",
+      "shopping",
+      "buying guide",
+      "buyer's guide",
+      "gaming",
+      "video games",
+      "console",
+      "playstation",
+      "xbox",
+      "nintendo"
+    ],
+    "exclude_title_pattern": "(?:^show\\s+hn:|^ask\\s+hn:|\\bbest\\s+(?:cheap\\s+)?(?:laptop|phone|smartphone|tablet|router|monitor|tv|headphone|earbud|speaker|camera|keyboard|mouse|chair|desk)s?\\b|\\btop\\s+\\d+\\s+(?:laptop|phone|tablet|gadget|app|game)|^review:|\\b(?:hands-on|first\\s+look):|\\bshould\\s+you\\s+(?:buy|upgrade|switch)\\b|\\b(?:deal|sale|discount|coupon|promo\\s+code)\\b|\\b\\d{1,3}\\s*%\\s*off\\b|^how\\s+to\\s+(?:install|configure|set\\s+up|enable|disable|fix|reset|download)\\b|\\b(?:meme\\s*coin|shitcoin|to\\s+the\\s+moon)\\b|^\\[sponsored\\]|^sponsored:)"
+  }
+}
