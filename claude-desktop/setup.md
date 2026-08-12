@@ -1,93 +1,115 @@
 # Claude Desktop MCP Setup
 
-This guide walks through configuring Claude Desktop with the MCP servers required for PWKM.
+PWKM needs far less local configuration than it once did. Most of what used to
+require a locally-installed MCP server is now supplied by Claude's built-in
+connectors, which you enable in the Claude interface rather than in a config
+file.
+
+**This repository's `config-example.json` therefore contains exactly one
+server.** If you have seen an older version listing four, that configuration
+no longer reflects a working setup, and two of its package names never existed.
+
+## What comes from where
+
+| Capability | How you get it |
+|---|---|
+| Notion pages and databases | Built-in Notion connector, enabled in Claude |
+| Email | Built-in Gmail or Microsoft 365 connector |
+| Calendar (for Claude to read directly) | Built-in Google Calendar connector |
+| Running shell commands and scripts | **windows-mcp**, configured locally |
+| Calendar (for the PWKM scripts) | Not an MCP server at all. `gcal_query.py` and `gcal_create.py` talk to the Google Calendar API directly using OAuth credentials in `.env`. |
+
+That last row is the one people get wrong. The scripts do not go through a
+calendar MCP server, so you do not need one for PWKM's startup report to
+include your calendar. You need Google OAuth credentials in `.env`.
 
 ## Prerequisites
 
-- Claude Desktop application installed
-- Node.js 18+ (for npx commands)
-- Python 3.10+ with uvx (for Windows MCP)
-- Notion account with API access
-- Google account (for calendar integration)
+- Claude Desktop installed
+- Python 3.10 or newer
+- `uv` / `uvx` installed, which is what runs windows-mcp
+- A Notion account
+- A Google account, only if you want calendar in the startup report
 
-## Configuration Location
+## Configuration location
 
-Claude Desktop configuration file location:
 - **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
 - **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
 
-## Step 1: Create Notion Integration
+## Step 1: Enable the connectors
 
-1. Go to [Notion Integrations](https://www.notion.so/my-integrations)
-2. Click "New Integration"
-3. Name it (e.g., "PWKM Claude Integration")
-4. Select your workspace
-5. Copy the "Internal Integration Token"
-6. In Notion, share your PWKM pages with this integration
+In Claude, enable the connectors you want. At minimum, Notion. This is done in
+the interface, not in a config file, and it is where the majority of PWKM's
+integration now comes from.
 
-## Step 2: Set Up Google Calendar (Optional)
+In Notion, share your PWKM pages with the connection so it can see them. A
+page that has not been shared is invisible rather than forbidden, which reads
+as an empty workspace rather than an error.
 
-1. Go to [Google Cloud Console](https://console.cloud.google.com)
-2. Create a new project or select existing
+## Step 2: Configure windows-mcp
+
+Copy `config-example.json` into your Claude Desktop config location, or merge
+its `mcpServers` block into the file if you already have one. There are no
+placeholders to replace.
+
+```json
+{
+  "mcpServers": {
+    "windows-mcp": {
+      "command": "uvx",
+      "args": ["windows-mcp"]
+    }
+  }
+}
+```
+
+Restart Claude Desktop afterwards.
+
+## Step 3: Google OAuth, if you want calendar in the startup report
+
+1. Go to the [Google Cloud Console](https://console.cloud.google.com)
+2. Create a project, or select an existing one
 3. Enable the Google Calendar API
-4. Create OAuth 2.0 credentials
-5. Note your Client ID and Client Secret
+4. Create OAuth 2.0 credentials, type **Desktop app**
+5. Put the client ID and secret in `scripts/.env` as `GOOGLE_CLIENT_ID` and
+   `GOOGLE_CLIENT_SECRET`
 
-## Step 3: Configure Claude Desktop
+The first run of `gcal_query.py` opens a browser to authorize. Run it from a
+normal terminal for that first run, not through Claude, since it needs a
+browser it can hand you.
 
-1. Copy `config-example.json` to your Claude Desktop config location
-2. Replace placeholder values:
-   - `YOUR_NOTION_API_KEY` → Your Notion integration token
-   - `YOUR_USERNAME` → Your Windows username
-   - `YOUR_GOOGLE_CLIENT_ID` → Google OAuth Client ID
-   - `YOUR_GOOGLE_CLIENT_SECRET` → Google OAuth Client Secret
+## Step 4: Verify
 
-3. Adjust filesystem paths to match your setup
+Restart Claude Desktop, start a conversation, and check the two halves
+separately, because they fail independently:
 
-## Step 4: Verify Installation
+- **Connectors:** ask Claude to fetch a specific Notion page by ID.
+- **windows-mcp:** ask Claude to run `python --version` in a shell.
 
-1. Restart Claude Desktop
-2. Start a new conversation
-3. Ask Claude to verify MCP connections:
-   - "Can you access Notion?"
-   - "Can you read local files?"
-   - "What's on my calendar today?"
-
-## MCP Server Reference
-
-### Notion MCP
-- **Purpose**: Read/write Notion pages and databases
-- **Required for**: Memory Base, project pages, task database
-
-### Filesystem MCP
-- **Purpose**: Read/write local files
-- **Required for**: Running summaries, CSV exports, scripts
-
-### Windows MCP
-- **Purpose**: Execute shell commands, desktop automation
-- **Required for**: Running Python scripts, system commands
-
-### Google Calendar MCP
-- **Purpose**: Read calendar events
-- **Required for**: Session startup calendar check
+Then run the startup script itself. Sections whose optional helper scripts are
+absent will say so and the run will continue; that is expected, not a failure.
 
 ## Troubleshooting
 
-### "MCP server not found"
-- Ensure Node.js is installed and `npx` is in PATH
-- Try running the npx command manually in terminal
+**windows-mcp does not appear.** Confirm `uvx` is installed and on PATH by
+running `uvx --version` in a terminal. Then restart Claude Desktop fully;
+reloading the window is not enough.
 
-### "Permission denied" on filesystem
-- Check that paths in config are within allowed directories
-- Use forward slashes or escaped backslashes in paths
+**Claude says it has no shell access even though windows-mcp is configured.**
+Tools are often deferred until searched for. See the Adaptive Tool Loading
+section of `protocols/core-protocols.md`. This is the single most common
+false negative in setup.
 
-### Notion connection fails
-- Verify API key is correct
-- Ensure pages are shared with the integration
-- Check Notion-Version header matches
+**Notion returns nothing for a page you can see.** The page is probably not
+shared with the connection. Sharing is per-page and inherited by children, so
+share the top of your PWKM tree.
 
-## Security Notes
+**Calendar works in Claude but not in the startup report, or vice versa.**
+These are two independent paths. The connector serves Claude; `.env`
+credentials serve the scripts. Fixing one does not fix the other.
 
-- Never commit your actual config file with API keys
-- Store sensitive values in environment variables if possible
-- The config-example.json uses placeholders intentionally
+## Security notes
+
+- Never commit your real config file or your `.env`
+- `.env` holds live credentials; `.env.example` holds placeholders
+- Check `.gitignore` covers `.env` before your first commit
