@@ -190,6 +190,20 @@ def format_json(weather: dict, alerts: list[dict], source: str, feed_url: str) -
     }, indent=2)
 
 
+def fail(msg: str, use_json: bool) -> int:
+    """Report a failure and return exit code 1.
+
+    The message goes to STDERR deliberately. startup.py reads stderr when a
+    helper exits non-zero and discards stdout, so a diagnostic printed only to
+    stdout is replaced by "Error: Unknown error" in the report. The JSON form
+    still goes to stdout for anyone calling this script directly.
+    """
+    if use_json:
+        print(json.dumps({"error": msg}))
+    print(msg, file=sys.stderr)
+    return 1
+
+
 def run_environment_canada(use_json: bool) -> int:
     """Fetch, parse, and print Environment Canada data. Returns an exit code."""
     feed_url, alerts_url = ec_urls(LAT, LON)
@@ -197,9 +211,7 @@ def run_environment_canada(use_json: bool) -> int:
 
     root = fetch_xml(feed_url)
     if root is None:
-        msg = "Failed to fetch weather feed"
-        print(json.dumps({"error": msg}) if use_json else f"[Weather unavailable: {msg}]")
-        return 1
+        return fail(f"Weather unavailable: failed to fetch {feed_url}", use_json)
 
     weather = parse_weather_feed(root)
 
@@ -235,10 +247,11 @@ def main():
 
     handler = PROVIDERS.get(PROVIDER)
     if handler is None:
-        msg = (f"Unknown PWKM_WEATHER_PROVIDER {PROVIDER!r}. "
-               f"Supported: {', '.join(sorted(PROVIDERS))}.")
-        print(json.dumps({"error": msg}) if args.json else f"[Weather unavailable: {msg}]")
-        return 1
+        return fail(
+            f"Weather unavailable: unknown PWKM_WEATHER_PROVIDER {PROVIDER!r}. "
+            f"Supported: {', '.join(sorted(PROVIDERS))}.",
+            args.json,
+        )
 
     return handler(args.json)
 
