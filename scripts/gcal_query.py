@@ -61,9 +61,26 @@ TZ = ZoneInfo(TZ_NAME)
 # (e.g. pasted from the Harness Slack calendar bot at startup).
 # Comma-separated calendar IDs. Useful for calendars you have free/busy-only
 # access to, where titles must be supplied another way.
+#
+# Each entry may carry an optional display label:
+#     PWKM_SECONDARY_CALENDARS=Work=you@work.example.com,family@example.com
+# Without a label, the local part of the address is used, so
+# "you@work.example.com" labels itself "you".
 _SECONDARY = os.environ.get('PWKM_SECONDARY_CALENDARS', '').strip()
-SECONDARY_CALENDARS = [c.strip() for c in _SECONDARY.split(',') if c.strip()]
-CAL_LABELS = {c: c.split('@')[0] for c in SECONDARY_CALENDARS}
+SECONDARY_CALENDARS = []
+CAL_LABELS = {}
+for _entry in (e.strip() for e in _SECONDARY.split(',')):
+    if not _entry:
+        continue
+    if '=' in _entry:
+        _label, _, _cal_id = _entry.partition('=')
+        _label, _cal_id = _label.strip(), _cal_id.strip()
+    else:
+        _cal_id, _label = _entry, ''
+    if not _cal_id:
+        continue
+    SECONDARY_CALENDARS.append(_cal_id)
+    CAL_LABELS[_cal_id] = _label or _cal_id.split('@')[0]
 
 
 def load_client_config():
