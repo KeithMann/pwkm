@@ -53,7 +53,6 @@ This is checked as part of the weekly audit trigger — not a separate mechanism
 - This is the single source of truth for bibliographic information
 
 ---
-
 ## Project Context Recognition Protocol
 
 **When writing a running summary entry, tag it with a project context** (e.g., "Project: Research Paper" or "Project: PWKM"). If consecutive entries are tagged with the same project and the project page hasn't been fetched, suggest: "I notice we've been working on [Project] for a while — should I fetch the project page for context?"
@@ -67,21 +66,18 @@ This piggybacks on the running summary mechanism rather than requiring independe
 
 ---
 
-## Memory Base Loading Protocol
+## Memory Base Protocol
 
-**Loading context for project work:**
+See Core Protocols "Memory Base Maintenance Protocol" for the canonical guidance on updating Memory Base.
+
+**When loading context for project work:**
 
 1. Fetch Memory Base for comprehensive background
-2. Fetch specific project page for current details
-3. Identify which Memory Base aspects are most relevant
-4. Cross-reference with Research Library, Themes as needed
+2. Fetch the specific project page for current details
+3. Identify which Memory Base aspects are most relevant to the task
+4. Cross-reference with Research Library and Themes as needed
 
-**When to update Memory Base:**
-- Major project milestones
-- New recurring themes identified
-- Significant frameworks emerge
-- Working methods evolve
-- New tools adopted
+*This section previously duplicated the Memory Base Maintenance Protocol in Core Protocols. It was consolidated to a pointer so that guidance lives in exactly one place; the "when to update" detail belongs in Core Protocols as the single source of truth. The loading-for-project-work steps are retained because they are specific to Knowledge Work context.*
 
 ---
 
