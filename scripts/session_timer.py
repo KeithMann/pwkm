@@ -16,25 +16,20 @@ Usage:
     python session_timer.py audit-done           # Record weekly audit completion
     python session_timer.py audit-done --monthly # Also record monthly idea review
 
-State files (in parent dir of scripts/):
+State files (in parent dir):
     session_timer_state.json  - Session timing state
     audit_state.json          - Weekly/monthly audit tracking
-
-Configuration:
-    Set LOCAL_TIMEZONE env var or edit TZ_NAME below. Default: America/New_York
-    Set PWKM_STATE_DIR env var to override state file location.
 """
 
+import os
 import argparse
 import json
-import os
 import sys
 from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-TZ_NAME = os.environ.get("LOCAL_TIMEZONE", "America/New_York")
-TZ = ZoneInfo(TZ_NAME)
+TZ = ZoneInfo(os.environ.get("LOCAL_TIMEZONE", "America/New_York"))
 SCRIPT_DIR = Path(__file__).parent
 STATE_DIR = Path(os.environ.get("PWKM_STATE_DIR", str(SCRIPT_DIR.parent)))
 STATE_FILE = STATE_DIR / 'session_timer_state.json'
@@ -76,7 +71,7 @@ def cmd_start(args):
     state = load_state()
     n = now()
     state['session_start'] = n.isoformat()
-    state['last_summary_update'] = n.isoformat()
+    state['last_summary_update'] = n.isoformat()  # Reset on new session
     state['update_count'] = 0
     save_state(state)
     print(f"Session started at {fmt_time(n.isoformat())}. Timer running.")
@@ -127,7 +122,7 @@ def cmd_check(args):
         }
         print(json.dumps(result))
     else:
-        status = "⚠️ OVERDUE" if overdue else "OK"
+        status = "** OVERDUE **" if overdue else "OK"
         print(f"Time: {fmt_time(n.isoformat())}")
         print(f"Session: {since_start} min (started {fmt_time(state['session_start'])})")
         print(f"Last summary: {since_update} min ago ({fmt_time(state.get('last_summary_update', state['session_start']))})")
@@ -158,8 +153,9 @@ def cmd_audit_check(args):
     audit = load_audit_state()
     n = now()
     today = n.date()
-    weekday = today.weekday()
+    weekday = today.weekday()  # 0=Monday
 
+    # Weekly audit: needed if last audit was >7 days ago (or never done)
     last_weekly = audit.get('last_weekly_audit')
     if last_weekly:
         last_weekly_date = datetime.fromisoformat(last_weekly).date()
@@ -169,6 +165,7 @@ def cmd_audit_check(args):
         weekly_needed = True
         days_since_weekly = None
 
+    # Monthly idea review: needed first week of month, if not done this month
     last_monthly = audit.get('last_monthly_review')
     first_week = today.day <= 7
     if last_monthly:
@@ -224,6 +221,11 @@ def main():
     parser.add_argument('--monthly', action='store_true', help='Also record monthly review (for audit-done)')
 
     args = parser.parse_args()
+
+    # Timestamp header for stale-file detection when output is redirected to file
+    # Skip for JSON mode to avoid breaking json.loads() in callers like startup.py
+    if not args.json:
+        print(f"[Generated: {now().strftime('%Y-%m-%d %I:%M %p %Z')}]")
 
     commands = {
         'start': cmd_start,

@@ -18,15 +18,12 @@ Usage:
     python gcal_query.py today --raw         # Full API response (debugging)
     python gcal_query.py today --classify    # Classify events vs current time
     python gcal_query.py today --classify --json  # Classified JSON output
-
-Configuration:
-    Set LOCAL_TIMEZONE env var or edit LOCAL_TZ_NAME below. Default: America/New_York
-    Requires Google Calendar API credentials (see setup-guide.md).
+    python gcal_query.py --auth              # Re-authorize OAuth token (no date_spec needed)
 """
 
+import os
 import argparse
 import json
-import os
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -36,6 +33,7 @@ try:
     from dotenv import load_dotenv
     from google.oauth2.credentials import Credentials
     from google.auth.transport.requests import Request
+    from google_auth_oauthlib.flow import InstalledAppFlow
     from googleapiclient.discovery import build
     from googleapiclient.errors import HttpError
 except ImportError as e:
@@ -46,31 +44,72 @@ SCOPES = ['https://www.googleapis.com/auth/calendar.events']
 SCRIPT_DIR = Path(__file__).parent
 ENV_FILE = SCRIPT_DIR / '.env'
 TOKEN_FILE = SCRIPT_DIR / 'gcal_token.json'
-LOCAL_TZ_NAME = os.environ.get("LOCAL_TIMEZONE", "America/New_York")
-TZ = ZoneInfo(LOCAL_TZ_NAME)
+CREDENTIALS_FILE = SCRIPT_DIR / 'gcal_credentials.json'
+TZ_NAME = os.environ.get("LOCAL_TIMEZONE", "America/New_York")
+TZ = ZoneInfo(TZ_NAME)
+
+# Secondary calendars merged into default (primary) queries.
+# Keith has free/busy-only access to the Harness calendar, so its events
+# arrive as untitled busy blocks unless titles are supplied separately
+# (e.g. pasted from the Harness Slack calendar bot at startup).
+# Comma-separated calendar IDs. Useful for calendars you have free/busy-only
+# access to, where titles must be supplied another way.
+_SECONDARY = os.environ.get('PWKM_SECONDARY_CALENDARS', '').strip()
+SECONDARY_CALENDARS = [c.strip() for c in _SECONDARY.split(',') if c.strip()]
+CAL_LABELS = {c: c.split('@')[0] for c in SECONDARY_CALENDARS}
 
 
-def get_credentials():
-    """Get valid credentials, refreshing if needed."""
+def load_client_config():
+    """Load OAuth client configuration from .env file."""
+    import os
     load_dotenv(ENV_FILE)
-    
-    if not TOKEN_FILE.exists():
-        print("Error: No token file. Run gcal_create.py --auth first.")
+    client_id = os.getenv('GOOGLE_CLIENT_ID')
+    client_secret = os.getenv('GOOGLE_CLIENT_SECRET')
+    if not client_id or not client_secret:
+        print("Error: GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be set in .env file")
+        print(f"Expected location: {ENV_FILE}")
         sys.exit(1)
-    
-    creds = Credentials.from_authorized_user_file(str(TOKEN_FILE), SCOPES)
-    
-    if creds and creds.expired and creds.refresh_token:
-        creds.refresh(Request())
-        with open(TOKEN_FILE, 'w') as f:
-            f.write(creds.to_json())
-    
-    if not creds or not creds.valid:
-        print("Error: Invalid credentials. Run gcal_create.py --auth to re-authorize.")
-        sys.exit(1)
-    
-    return creds
+    return {
+        "installed": {
+            "client_id": client_id,
+            "client_secret": client_secret,
+            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+            "token_uri": "https://oauth2.googleapis.com/token",
+            "redirect_uris": ["http://localhost"]
+        }
+    }
 
+
+def get_credentials(force_auth=False):
+    """Get valid credentials, refreshing or re-authorizing as needed."""
+    load_dotenv(ENV_FILE)
+    creds = None
+
+    if TOKEN_FILE.exists() and not force_auth:
+        try:
+            creds = Credentials.from_authorized_user_file(str(TOKEN_FILE), SCOPES)
+        except Exception:
+            pass
+
+    if not creds or not creds.valid:
+        if creds and creds.expired and creds.refresh_token:
+            try:
+                creds.refresh(Request())
+            except Exception:
+                creds = None
+
+        if not creds:
+            print("Starting OAuth authorization flow...")
+            print("A browser window will open for you to authorize access.")
+            client_config = load_client_config()
+            flow = InstalledAppFlow.from_client_config(client_config, SCOPES)
+            creds = flow.run_local_server(port=0)
+            print("Authorization successful!")
+
+    with open(TOKEN_FILE, 'w') as f:
+        f.write(creds.to_json())
+
+    return creds
 
 def resolve_dates(args):
     """Resolve date arguments to (start, end) datetime range."""
@@ -109,7 +148,6 @@ def format_time(dt_str, date_str=None):
     if dt_str:
         dt = datetime.fromisoformat(dt_str)
         try:
-            # Windows uses %#I, Linux uses %-I
             return dt.strftime('%#I:%M %p').lower()
         except ValueError:
             return dt.strftime('%-I:%M %p').lower()
@@ -117,16 +155,10 @@ def format_time(dt_str, date_str=None):
 
 
 def classify_event(event, now):
-    """Classify an event relative to the current time.
-    
-    Returns a dict with:
-        status: 'completed' | 'in_progress' | 'upcoming_imminent' | 'upcoming_later'
-        detail: human-readable detail string (e.g., 'started 13 min ago', 'in 47 min')
-    """
+    """Classify an event relative to the current time."""
     start_info = event.get('start', {})
     end_info = event.get('end', {})
     
-    # All-day events: classify based on date only
     if start_info.get('date'):
         event_date = datetime.strptime(start_info['date'], '%Y-%m-%d').date()
         today = now.date()
@@ -138,7 +170,6 @@ def classify_event(event, now):
             days_until = (event_date - today).days
             return {'status': 'upcoming_later', 'detail': f'in {days_until}d'}
     
-    # Timed events
     start_dt = datetime.fromisoformat(start_info['dateTime'])
     end_dt = datetime.fromisoformat(end_info['dateTime'])
     
@@ -214,10 +245,71 @@ def query_events(start, end, calendar_id='primary'):
         timeMax=end.isoformat(),
         singleEvents=True,
         orderBy='startTime',
-        timeZone=LOCAL_TZ_NAME
+        timeZone=TZ_NAME
     ).execute()
     
     return events_result.get('items', [])
+
+
+def query_secondary_events(start, end, cal_id, label):
+    """Query a secondary calendar. Free/busy-only calendars return events
+    without titles; fall back to the freebusy endpoint on error."""
+    creds = get_credentials()
+    service = build('calendar', 'v3', credentials=creds)
+    tagged = []
+    try:
+        items = service.events().list(
+            calendarId=cal_id,
+            timeMin=start.isoformat(),
+            timeMax=end.isoformat(),
+            singleEvents=True,
+            orderBy='startTime',
+            timeZone=TZ_NAME,
+        ).execute().get('items', [])
+        for ev in items:
+            if not ev.get('summary'):
+                ev['summary'] = f'({label} busy)'
+            ev['_calendar'] = label
+            tagged.append(ev)
+        return tagged
+    except HttpError:
+        # Fall back to free/busy (guaranteed for freeBusyReader access).
+        try:
+            body = {
+                'timeMin': start.isoformat(),
+                'timeMax': end.isoformat(),
+                'timeZone': TZ_NAME,
+                'items': [{'id': cal_id}],
+            }
+            fb = service.freebusy().query(body=body).execute()
+            busy = fb.get('calendars', {}).get(cal_id, {}).get('busy', [])
+            for b in busy:
+                s = datetime.fromisoformat(b['start'].replace('Z', '+00:00')).astimezone(TZ)
+                e = datetime.fromisoformat(b['end'].replace('Z', '+00:00')).astimezone(TZ)
+                tagged.append({
+                    'start': {'dateTime': s.isoformat()},
+                    'end': {'dateTime': e.isoformat()},
+                    'summary': f'({label} busy)',
+                    '_calendar': label,
+                })
+        except HttpError as err2:
+            print(f"[warn] could not query {cal_id}: {err2}", file=sys.stderr)
+        return tagged
+
+
+def merge_and_sort(events):
+    """Sort merged events by start time (all-day first within a day)."""
+    def _key(ev):
+        s = ev.get('start', {})
+        if s.get('dateTime'):
+            dt = datetime.fromisoformat(s['dateTime'])
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=TZ)
+            return dt
+        if s.get('date'):
+            return datetime.strptime(s['date'], '%Y-%m-%d').replace(tzinfo=TZ)
+        return datetime.now(TZ)
+    return sorted(events, key=_key)
 
 
 def output_compact(events, start, end, classify=False):
@@ -279,17 +371,43 @@ def output_json(events, classify=False):
 
 def main():
     parser = argparse.ArgumentParser(description='Query Google Calendar (compact output)')
-    parser.add_argument('date_spec', help="'today', 'tomorrow', 'week', or YYYY-MM-DD")
+    parser.add_argument('date_spec', nargs='?', help="'today', 'tomorrow', 'week', or YYYY-MM-DD (not required with --auth)")
     parser.add_argument('end_date', nargs='?', help='End date for range (YYYY-MM-DD)')
     parser.add_argument('--calendar', '-c', default='primary', help='Calendar ID')
     parser.add_argument('--json', action='store_true', help='Output as compact JSON')
     parser.add_argument('--raw', action='store_true', help='Output full API response')
     parser.add_argument('--classify', action='store_true', help='Classify events vs current time (DONE/NOW/SOON/LATER)')
     parser.add_argument('--output', '-o', help='Write output to file instead of stdout')
+    parser.add_argument('--no-secondary', action='store_true', help='Exclude secondary calendars (e.g. Harness) from default query')
+    parser.add_argument('--auth', action='store_true', help='Force re-authorization (no date_spec required). Must be run from a regular terminal, not MCP shell.')
     
     args = parser.parse_args()
+
+    # Handle auth-only mode
+    if args.auth:
+        get_credentials(force_auth=True)
+        print("Re-authorization complete.")
+        return
+
+    # Require date_spec if not in auth mode
+    if not args.date_spec:
+        parser.error("date_spec is required unless --auth is used")
+
+    # Clear output file immediately to prevent stale data if the API call
+    # fails or times out.
+    if args.output:
+        with open(args.output, 'w') as f:
+            pass
+
     start, end = resolve_dates(args)
     events = query_events(start, end, args.calendar)
+    # For the default (primary) calendar, also merge secondary calendars
+    # (e.g. Harness) unless suppressed with --no-secondary.
+    if args.calendar == 'primary' and not args.no_secondary:
+        for cal_id in SECONDARY_CALENDARS:
+            events += query_secondary_events(
+                start, end, cal_id, CAL_LABELS.get(cal_id, cal_id))
+        events = merge_and_sort(events)
     
     import io
     if args.output:
@@ -297,6 +415,9 @@ def main():
         old_stdout = sys.stdout
         sys.stdout = buf
     
+    if not args.json and not args.raw:
+        print(f"[Generated: {datetime.now(TZ).strftime('%Y-%m-%d %I:%M %p %Z')}]")
+
     if args.raw:
         print(json.dumps(events, indent=2))
     elif args.json:

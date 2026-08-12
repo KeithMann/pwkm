@@ -3,14 +3,14 @@
 Date utilities for PWKM task management.
 
 Handles:
-- Current date/time in local timezone
+- Current date/time in Eastern timezone
 - Day of week verification
 - Date arithmetic (add days/months/years)
 - Nth weekday of month calculations (First Saturday, Second Saturday, etc.)
 - Next occurrence calculations for recurring tasks
 
 Usage:
-    python date_utils.py now                              # Current date/time
+    python date_utils.py now                              # Current date/time in EST
     python date_utils.py weekday 2026-01-13               # Get day of week
     python date_utils.py add 2026-01-06 7d                # Add 7 days
     python date_utils.py add 2026-01-06 3m                # Add 3 months  
@@ -23,23 +23,18 @@ Usage:
     python date_utils.py next-recurring 2026-01-01 yearly             # Add 1 year
 
 All commands support --json flag for structured output.
-
-Configuration:
-    Set LOCAL_TIMEZONE environment variable or edit the LOCAL_TZ constant below.
-    Default: America/Toronto (Eastern)
 """
 
+import os
 import argparse
 import json
-import os
 import sys
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from dateutil.relativedelta import relativedelta
 from typing import Optional
 
-# Configure your timezone here, or set LOCAL_TIMEZONE env var
-LOCAL_TZ = ZoneInfo(os.environ.get("LOCAL_TIMEZONE", "America/Toronto"))
+EASTERN = ZoneInfo(os.environ.get("LOCAL_TIMEZONE", "America/Toronto"))
 
 WEEKDAYS = {
     "monday": 0, "tuesday": 1, "wednesday": 2, "thursday": 3,
@@ -49,9 +44,9 @@ WEEKDAYS = {
 WEEKDAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 
 
-def now_local() -> datetime:
-    """Get current datetime in local timezone."""
-    return datetime.now(LOCAL_TZ)
+def now_eastern() -> datetime:
+    """Get current datetime in Eastern timezone."""
+    return datetime.now(EASTERN)
 
 
 def parse_date(date_str: str) -> datetime:
@@ -118,11 +113,19 @@ def nth_weekday_of_month(year: int, month: int, n: int, weekday: int) -> datetim
     Returns:
         datetime of the nth weekday, or raises ValueError if doesn't exist
     """
+    # First day of the month
     first_day = datetime(year, month, 1)
+    
+    # Days until first occurrence of target weekday
     days_until = (weekday - first_day.weekday()) % 7
+    
+    # First occurrence
     first_occurrence = first_day + timedelta(days=days_until)
+    
+    # Nth occurrence
     nth_occurrence = first_occurrence + timedelta(weeks=n-1)
     
+    # Verify it's still in the same month
     if nth_occurrence.month != month:
         raise ValueError(f"No {n}th {WEEKDAY_NAMES[weekday]} in {year}-{month:02d}")
     
@@ -135,7 +138,16 @@ def next_nth_weekday_after(after_date: datetime, n: int, weekday: int) -> dateti
     
     Used for recurring tasks like "Second Saturday" - after completing on Jan 10,
     find the Second Saturday of the next month.
+    
+    Args:
+        after_date: The reference date (usually task completion date)
+        n: Which occurrence (1=first, 2=second, etc.)
+        weekday: Day of week (0=Monday, 6=Sunday)
+    
+    Returns:
+        datetime of the next nth weekday
     """
+    # Start with next month
     next_month = after_date + relativedelta(months=1)
     year, month = next_month.year, next_month.month
     
@@ -143,6 +155,7 @@ def next_nth_weekday_after(after_date: datetime, n: int, weekday: int) -> dateti
         result = nth_weekday_of_month(year, month, n, weekday)
         return result
     except ValueError:
+        # Rare case: nth weekday doesn't exist in that month, try the following month
         next_month = next_month + relativedelta(months=1)
         return nth_weekday_of_month(next_month.year, next_month.month, n, weekday)
 
@@ -212,14 +225,14 @@ def next_recurring(current_due: datetime, pattern: str) -> datetime:
 
 def cmd_now(args):
     """Handle 'now' command."""
-    dt = now_local()
+    dt = now_eastern()
     if args.json:
         return {
             "date": format_date(dt),
             "time": dt.strftime("%H:%M:%S"),
             "datetime": dt.strftime("%Y-%m-%d %H:%M:%S"),
             "weekday": get_weekday_name(dt),
-            "timezone": str(LOCAL_TZ),
+            "timezone": str(EASTERN),
             "formatted": dt.strftime("%A, %B %d, %Y at %I:%M %p %Z")
         }
     return dt.strftime("%A, %B %d, %Y at %I:%M %p %Z")
@@ -319,7 +332,7 @@ def main():
     subparsers = parser.add_subparsers(dest='command', required=True)
     
     # now
-    subparsers.add_parser('now', help='Current date/time in local timezone')
+    subparsers.add_parser('now', help='Current date/time in Eastern timezone')
     
     # weekday
     p_weekday = subparsers.add_parser('weekday', help='Get day of week for a date')
@@ -364,6 +377,8 @@ def main():
         if args.json:
             print(json.dumps(result, indent=2))
         else:
+            # Timestamp header for stale-file detection when output is redirected to file
+            print(f"[Generated: {datetime.now(EASTERN).strftime('%Y-%m-%d %I:%M %p %Z')}]")
             print(result)
             
     except Exception as e:

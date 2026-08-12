@@ -18,17 +18,12 @@ All commands support --json flag for structured output.
 
 CSV Format Expected:
     Task Name, Due Date, Category, Frequency, Priority, Status, URL
-
-Configuration:
-    Set LOCAL_TIMEZONE env var or edit LOCAL_TZ below. Default: America/Toronto
-    Set PWKM_TASKS_CSV env var or edit DEFAULT_CSV_NAME below for CSV location.
-    The script auto-detects CSV in its own directory first, then falls back.
 """
 
+import os
 import argparse
 import csv
 import json
-import os
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -37,31 +32,26 @@ from dateutil.relativedelta import relativedelta
 from typing import Optional, List, Dict, Any
 
 # Configuration
-LOCAL_TZ = ZoneInfo(os.environ.get("LOCAL_TIMEZONE", "America/Toronto"))
-DEFAULT_CSV_NAME = "notion_tasks.csv"
+EASTERN = ZoneInfo(os.environ.get("LOCAL_TIMEZONE", "America/Toronto"))
+# Task CSV location. Set PWKM_TASKS_CSV, or leave unset to use the default
+# beside the Claude Desktop config directory.
+WINDOWS_CSV_PATH = Path(os.environ.get(
+    "PWKM_TASKS_CSV",
+    str(Path.home() / "AppData" / "Roaming" / "Claude" / "notion_tasks.csv"),
+))
 
 def get_csv_path() -> Path:
-    """Find CSV file - check env var, then script directory, then parent."""
-    # Check environment variable first
-    env_path = os.environ.get("PWKM_TASKS_CSV")
-    if env_path:
-        p = Path(env_path)
-        if p.exists():
-            return p
-    
+    """Find CSV file - check script directory first, then Windows default."""
     # Check same directory as script
     script_dir = Path(__file__).parent
-    local_csv = script_dir / DEFAULT_CSV_NAME
+    local_csv = script_dir / "notion_tasks.csv"
     if local_csv.exists():
         return local_csv
-    
-    # Check parent directory
-    parent_csv = script_dir.parent / DEFAULT_CSV_NAME
-    if parent_csv.exists():
-        return parent_csv
-    
-    # Return local path for error message
-    return local_csv
+    # Fall back to Windows path
+    if WINDOWS_CSV_PATH.exists():
+        return WINDOWS_CSV_PATH
+    # Return local path for better error message in container
+    return local_csv if not WINDOWS_CSV_PATH.parent.exists() else WINDOWS_CSV_PATH
 
 WEEKDAYS = {
     "monday": 0, "tuesday": 1, "wednesday": 2, "thursday": 3,
@@ -75,15 +65,15 @@ WEEKDAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturd
 # Date Utilities (incorporated from date_utils.py for self-contained operation)
 # =============================================================================
 
-def now_local() -> datetime:
-    """Get current datetime in local timezone."""
-    return datetime.now(LOCAL_TZ)
+def now_eastern() -> datetime:
+    """Get current datetime in Eastern timezone."""
+    return datetime.now(EASTERN)
 
 
-def today_local() -> datetime:
-    """Get today's date (midnight) in local timezone."""
-    n = now_local()
-    return datetime(n.year, n.month, n.day)
+def today_eastern() -> datetime:
+    """Get today's date (midnight) in Eastern timezone."""
+    now = now_eastern()
+    return datetime(now.year, now.month, now.day)
 
 
 def parse_date(date_str: str) -> datetime:
@@ -102,7 +92,9 @@ def get_weekday_name(dt: datetime) -> str:
 
 
 def nth_weekday_of_month(year: int, month: int, n: int, weekday: int) -> datetime:
-    """Find the nth occurrence of a weekday in a given month."""
+    """
+    Find the nth occurrence of a weekday in a given month.
+    """
     first_day = datetime(year, month, 1)
     days_until = (weekday - first_day.weekday()) % 7
     first_occurrence = first_day + timedelta(days=days_until)
@@ -115,7 +107,9 @@ def nth_weekday_of_month(year: int, month: int, n: int, weekday: int) -> datetim
 
 
 def next_nth_weekday_after(after_date: datetime, n: int, weekday: int) -> datetime:
-    """Find the next nth weekday of a month after a given date."""
+    """
+    Find the next nth weekday of a month after a given date.
+    """
     next_month = after_date + relativedelta(months=1)
     year, month = next_month.year, next_month.month
     
@@ -126,23 +120,76 @@ def next_nth_weekday_after(after_date: datetime, n: int, weekday: int) -> dateti
         return nth_weekday_of_month(next_month.year, next_month.month, n, weekday)
 
 
+def last_day_of_month(year: int, month: int) -> datetime:
+    """
+    Return the last calendar day of a given month.
+
+    relativedelta(day=31) clamps down to the true last day, so this is
+    correct for 28, 29, 30, and 31 day months alike.
+    """
+    return datetime(year, month, 1) + relativedelta(day=31)
+
+
+def next_last_day_after(after_date: datetime) -> datetime:
+    """
+    Find the last day of the month following a given date.
+
+    Anchors on the month rather than on the current due date's day number,
+    which is what stops the drift that plain relativedelta(months=1) causes:
+    2026-08-31 + 1 month clamps to 2026-09-30 and then sticks at day 30
+    forever. Added 2026-08-03.
+    """
+    return after_date + relativedelta(months=1, day=31)
+
+
+def parse_frequency_pattern(frequency: str) -> tuple[str, Optional[int], Optional[int]]:
+    """
+    Parse a task frequency pattern from CSV.
+    
+    Returns:
+        Tuple of (pattern_type, n, weekday)
+    """
+    freq_lower = frequency.lower().strip()
+    
+    if freq_lower == 'daily':
+        return ('daily', None, None)
+    elif freq_lower == 'weekly':
+        return ('weekly', None, None)
+    elif freq_lower == 'monthly':
+        return ('monthly', None, None)
+    elif freq_lower == 'quarterly':
+        return ('quarterly', None, None)
+    elif freq_lower == 'yearly':
+        return ('yearly', None, None)
+    
+    # Not a standard frequency - return unknown
+    return ('unknown', None, None)
+
+
 def parse_task_name_for_pattern(task_name: str) -> tuple[str, Optional[int], Optional[int]]:
     """
     Extract recurrence pattern from task name.
     
     Handles patterns like:
         "Haircut (First Saturday)"
-        "Garden Cleanup (Second Saturday)"
+        "Trim Ivy (Second Saturday)"
+        "SSAH (Fourth Saturday)"
+        "Submit Expenses (Last Day)"
     """
     ordinals = {
         'first': 1, 'second': 2, 'third': 3, 'fourth': 4, 'fifth': 5,
         '1st': 1, '2nd': 2, '3rd': 3, '4th': 4, '5th': 5
     }
     
+    # Look for pattern in parentheses
     import re
     match = re.search(r'\(([^)]+)\)', task_name.lower())
     if match:
         pattern_text = match.group(1).strip()
+
+        # Last-day-of-month pattern, e.g. "Submit Expenses (Last Day)"
+        if pattern_text in ('last day', 'last', 'month end', 'month-end'):
+            return ('last_day', None, None)
         parts = pattern_text.split()
         
         if len(parts) == 2:
@@ -156,6 +203,7 @@ def parse_task_name_for_pattern(task_name: str) -> tuple[str, Optional[int], Opt
 def calculate_next_due_date(current_due: datetime, frequency: str, task_name: str) -> datetime:
     """
     Calculate the next due date for a recurring task.
+    
     Uses both the Frequency field and task name to determine the pattern.
     """
     freq_lower = frequency.lower().strip()
@@ -171,9 +219,12 @@ def calculate_next_due_date(current_due: datetime, frequency: str, task_name: st
     elif freq_lower == 'monthly':
         # Check if task name specifies nth weekday pattern
         pattern_type, n, weekday = parse_task_name_for_pattern(task_name)
+        if pattern_type == 'last_day':
+            return next_last_day_after(current_due)
         if pattern_type == 'nth_weekday':
             return next_nth_weekday_after(current_due, n, weekday)
         else:
+            # Simple monthly - same day next month
             return current_due + relativedelta(months=1)
     
     raise ValueError(f"Unknown frequency pattern: {frequency}")
@@ -189,6 +240,7 @@ def read_tasks(csv_path: Path) -> List[Dict[str, Any]]:
     with open(csv_path, 'r', newline='', encoding='utf-8') as f:
         reader = csv.DictReader(f)
         for row in reader:
+            # Parse the due date
             due_date = None
             if row.get('Due Date'):
                 try:
@@ -234,10 +286,12 @@ def find_task(tasks: List[Dict[str, Any]], task_name: str) -> Optional[Dict[str,
     """Find a task by name (case-insensitive partial match)."""
     task_name_lower = task_name.lower()
     
+    # First try exact match
     for task in tasks:
         if task['name'].lower() == task_name_lower:
             return task
     
+    # Then try partial match
     for task in tasks:
         if task_name_lower in task['name'].lower():
             return task
@@ -245,7 +299,8 @@ def find_task(tasks: List[Dict[str, Any]], task_name: str) -> Optional[Dict[str,
     return None
 
 
-def format_task(task: Dict[str, Any], include_weekday: bool = True) -> str:
+def format_task(task: Dict[str, Any], include_weekday: bool = True,
+                show_status: bool = False) -> str:
     """Format a task for display."""
     parts = [task['name']]
     
@@ -259,6 +314,9 @@ def format_task(task: Dict[str, Any], include_weekday: bool = True) -> str:
     if task['frequency']:
         parts.append(f"[{task['frequency']}]")
     
+    if show_status and task['status'] and task['status'].lower() != 'to do':
+        parts.append(f"<{task['status']}>")
+
     return " - ".join(parts)
 
 
@@ -287,7 +345,7 @@ def task_to_dict(task: Dict[str, Any]) -> Dict[str, Any]:
 def cmd_status(args):
     """Show overdue, due today, and due tomorrow tasks."""
     tasks = read_tasks(args.csv_path)
-    today = today_local()
+    today = today_eastern()
     tomorrow = today + timedelta(days=1)
     
     overdue = []
@@ -340,7 +398,7 @@ def cmd_status(args):
 def cmd_upcoming(args):
     """Show tasks due in the next N days."""
     tasks = read_tasks(args.csv_path)
-    today = today_local()
+    today = today_eastern()
     end_date = today + timedelta(days=args.days)
     
     upcoming = []
@@ -349,6 +407,7 @@ def cmd_upcoming(args):
             if today <= task['due_date'] <= end_date:
                 upcoming.append(task)
     
+    # Sort by due date
     upcoming.sort(key=lambda t: t['due_date'])
     
     if args.json:
@@ -375,22 +434,34 @@ def cmd_upcoming(args):
 def cmd_list(args):
     """List all tasks."""
     tasks = read_tasks(args.csv_path)
+    total = len(tasks)
     
+    # Filter by status if specified
     if args.status:
         tasks = [t for t in tasks if t['status'].lower() == args.status.lower()]
+    elif not args.all:
+        # Completed tasks are hidden by default. Showing them undifferentiated
+        # alongside live work made the list untrustworthy at a glance.
+        tasks = [t for t in tasks if t['status'].lower() != 'done']
     
     if args.json:
         return {
             'count': len(tasks),
+            'hidden_done': total - len(tasks) if not args.status else 0,
             'tasks': [task_to_dict(t) for t in tasks],
         }
     
     lines = []
-    lines.append(f"All Tasks ({len(tasks)} total)")
+    hidden = total - len(tasks) if not args.status else 0
+    header = f"Tasks ({len(tasks)} shown"
+    if hidden:
+        header += f", {hidden} completed hidden; use --all to include"
+    header += ")"
+    lines.append(header)
     lines.append("=" * 50)
     
     for task in tasks:
-        lines.append(f"  • {format_task(task)}")
+        lines.append(f"  • {format_task(task, show_status=True)}")
     
     return "\n".join(lines)
 
@@ -435,8 +506,10 @@ def cmd_complete(args):
     old_due_date = task['due_date_str']
     old_status = task['status']
     
+    # Check if recurring (empty frequency or "one-time" means non-recurring)
     freq_lower = (task['frequency'] or '').lower().strip()
     if task['frequency'] and freq_lower != 'one-time':
+        # Calculate next due date
         if task['due_date']:
             new_due_date = calculate_next_due_date(
                 task['due_date'], 
@@ -448,9 +521,11 @@ def cmd_complete(args):
         task['status'] = 'To Do'
         action = 'rescheduled'
     else:
+        # Non-recurring: mark as done
         task['status'] = 'Done'
         action = 'completed'
     
+    # Write back
     write_tasks(args.csv_path, tasks)
     
     if args.json:
@@ -477,6 +552,13 @@ def cmd_complete(args):
 
 
 def main():
+    # Force UTF-8 on stdout/stderr. Output contains emoji and box characters;
+    # when redirected on Windows the default cp1252 encoder raises UnicodeEncodeError.
+    # Callers previously had to set PYTHONUTF8=1 themselves. Added 2026-07-26.
+    for _stream in (sys.stdout, sys.stderr):
+        if hasattr(_stream, 'reconfigure'):
+            _stream.reconfigure(encoding='utf-8')
+
     parser = argparse.ArgumentParser(
         description="Task manager for PWKM system",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -498,6 +580,8 @@ def main():
     # list
     p_list = subparsers.add_parser('list', help='List all tasks')
     p_list.add_argument('--status', help='Filter by status (e.g., "To Do", "Done")')
+    p_list.add_argument('--all', action='store_true',
+                        help='Include completed tasks (hidden by default)')
     
     # get
     p_get = subparsers.add_parser('get', help='Get details for a specific task')
@@ -509,6 +593,7 @@ def main():
     
     args = parser.parse_args()
     
+    # Resolve CSV path if not specified
     if args.csv_path is None:
         args.csv_path = get_csv_path()
     
