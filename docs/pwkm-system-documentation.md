@@ -8,11 +8,18 @@ By Keith Mann
 
 ## Abstract
 
-This document describes a sophisticated Personal Work and Knowledge Management (PWKM) system built through iterative collaboration between a human knowledge worker and Claude, Anthropic's AI assistant. The system addresses a fundamental challenge in knowledge work: maintaining coherent context across multiple concurrent projects while leveraging AI assistance effectively, integrating both work management (projects, tasks, deadlines) and knowledge management (research, ideas, themes, theory-building) in a unified architecture.
+This document describes a Personal Work and Knowledge Management (PWKM) system
+built through iterative collaboration between a human knowledge worker and Claude, Anthropic's AI assistant. The system addresses a fundamental challenge in knowledge work: maintaining coherent context across multiple concurrent projects while leveraging AI assistance effectively, integrating both work management (projects, tasks, deadlines) and knowledge management (research, ideas, themes, theory-building) in a unified architecture.
 
 The result is not just a set of tools, but an integrated architecture that embodies principles from systems thinking, cognitive science, and knowledge management theory. This case study documents the system's structure, the principles that guided its design, its evolution, and provides templates for others to adapt.
 
-**Research Finding**: Comprehensive search of existing PKM (Personal Knowledge Management) and AI integration systems found no comparable documented architecture combining theoretical grounding, comprehensive protocols, hub-and-spoke organization, and evolutionary documentation. This represents a genuine contribution to the field of human-AI collaboration for knowledge work.
+**Scope of the claim**: this is a case study of one system in daily use, not a
+survey of the field. An informal search at the time of first writing did not
+turn up a closely comparable published architecture, but that search was not
+systematic, it was never repeated, and the personal-knowledge-management and
+AI-tooling landscape has moved a great deal since. Nothing here should be read
+as a claim of novelty or priority. What is offered is a worked example,
+described in enough detail to be adapted, tested, or argued with.
 
 ---
 
@@ -184,6 +191,31 @@ The system that emerged embodies several key principles, drawn from systems thin
 - `date_utils.py` handles all date arithmetic (Claude never does mental date math)
 - Audit triggers tracked persistently in `audit_state.json`
 
+### 10. Configuration Over Forking
+
+**Principle**: Where two environments differ, make the difference a configuration
+value rather than a second copy of the code.
+
+**Rationale**: A fork is a promise to maintain two things that will drift apart.
+Once a script exists in a personal variant and a published variant, every later
+fix has to be made twice, and the one nobody runs daily is the one that rots.
+The discipline is to keep a single implementation and push every environmental
+difference outward into configuration.
+
+**Implementation**: The published scripts and the author's live scripts are
+byte-identical. Everything that differs between them lives in `.env` or in a
+gitignored JSON file: locations, calendar identifiers, feed lists, database
+identifiers, activity categories, file paths. Where a setting needs more than a
+bare value, the convention is `Label=Value` rather than a parallel variable, so
+that adding a second calendar does not mean adding a second code path.
+
+**Corollary, on absence**: a setting can be absent for more than one reason, and
+the reasons are not interchangeable. Absent by design, absent by failure, and
+present but not asked for are three different situations. The ActivityWatch
+integration therefore reads as a tri-state (`on`, `off`, or unset) rather than a
+boolean, and `off` performs no probe at all, because the probe is itself the
+access being declined.
+
 ---
 
 ## System Architecture
@@ -295,7 +327,12 @@ The system consists of three layers:
 
 **Implementation**: Notion database exported to CSV for efficient checking. Python script (`task_manager.py`) handles task completion and rescheduling.
 
-**Why CSV**: Notion MCP doesn't support filtered database queries. CSV export enables single file read vs. 25+ API calls per startup.
+**Why CSV**: one local file read is faster than querying the Notion API at every
+startup, and it works offline. The original rationale no longer holds: filtered
+database queries were unsupported when this was written, but are supported now
+and are used elsewhere in the system, for example by `goodreads_sync.py`. The
+CSV export is retained for speed and offline availability, not because filtering
+is unavailable.
 
 ### Project Layer
 
@@ -366,12 +403,18 @@ Project pages frequently contain **subpages** created by either the human or Cla
 #### Tiered Startup Protocol
 
 **Tier 1 (Every Session)**:
-1. Verify current date via date utility script
-2. Fetch Core Protocols
-3. Check today's calendar
-4. Fetch PWKM Hub for project registry
-5. Run task status check
-6. Report: calendar, overdue/today tasks, upcoming milestones
+
+A single script, `startup.py`, performs the whole sequence in one call and prints
+a consolidated report: verified date and time, weather, market summary, news
+headlines, milestone alerts, calendar for today and tomorrow with DONE / NOW /
+SOON / LATER classification, task status including overdue items, audit
+triggers, health-export status, scheduled-task health, and the previous day's
+activity trail. It also starts the session timer and creates the day's running
+summary file if one does not already exist.
+
+Claude then fetches Core Protocols and the Memory Base from Notion and reports
+the result. Consolidation is the point: the checks happen whether or not the
+assistant remembers to make them. See Design Principle 9.
 
 **Tier 2 (Load On-Demand)**:
 
@@ -388,7 +431,8 @@ Project pages frequently contain **subpages** created by either the human or Cla
 - Research Library, Work Patterns, Ideas, Recurring Themes, Session Summaries
 - Only fetch when session work requires them
 
-**Benefit**: Reduces startup tokens from ~8,000 to ~3,000.
+**Benefit**: Each session loads only the protocols it needs. Completing a single
+task does not pay the cost of loading the research library.
 
 #### Running Summary Protocol
 
@@ -420,6 +464,81 @@ Next: What this enables.
 2. Script updates local CSV
 3. Update Notion task page with new due date
 4. Both CSV and Notion stay synchronized
+
+#### Script Inventory
+
+Fourteen scripts ship with the reference implementation. Only the first six are
+required; the rest extend the startup report or automate a recurring
+reconciliation, and each degrades quietly when unconfigured.
+
+**Core**
+- `startup.py`: the consolidated daystarter. Calls the helpers below, prints one
+  report, starts the session timer, creates the day's running summary file.
+- `pwkm_env.py`: shared configuration loader. Standard library only.
+- `date_utils.py`: date arithmetic and weekday verification.
+- `session_timer.py`: the 30-minute running summary clock and the audit triggers.
+- `task_manager.py`: task completion and rescheduling against the CSV.
+- `fetch_notion_tasks.py`: exports the Notion tasks database to CSV.
+
+**Calendar**
+- `gcal_query.py`: reads the calendar, with `--classify` for DONE / NOW / SOON /
+  LATER. Merges secondary calendars, including free/busy-only ones.
+- `gcal_create.py`: creates events, used for day planning blocks.
+
+**Startup report sections (each optional)**
+- `weather.py`: local forecast from a configured Environment Canada feed.
+- `market.py`: index summary and holdings that moved beyond a threshold.
+- `news.py`: RSS headlines, with feeds and exclusion filters in a config file.
+- `activitywatch.py`: the previous day's activity trail. Tri-state, see Design
+  Principle 10.
+
+**Reconciliation**
+- `goodreads_sync.py`: reconciles a reading shelf against a Notion database.
+- `env_audit.py`: checks the configuration itself and reports what is missing,
+  malformed, or set but unused.
+
+#### Configuration
+
+Configuration lives in `scripts/.env`, loaded by `pwkm_env.py`. `.env.example`
+documents every variable and, for each one, which script actually reads it.
+`env_audit.py` checks a real configuration against that list.
+
+Three rules govern how configuration behaves:
+
+**The real environment wins.** A variable already set in the process environment
+takes precedence over the file. The file supplies defaults; it does not override
+a deliberate choice made outside it.
+
+**Structured configuration goes in JSON, not `.env`.** Anything with internal
+structure, such as the news feed list or the activity category rules, lives in
+its own JSON file. An `.example` version ships with the repository and the real
+one is gitignored, so personal configuration never reaches a commit.
+
+**Optional means optional, but misconfigured does not.** An optional section that
+is simply not configured exits cleanly and is omitted from the report. An
+optional section that is configured incorrectly exits non-zero and says why, on
+**stderr**, because `startup.py` reads stderr rather than stdout when a helper
+fails. Silence and breakage must not look alike.
+
+#### Day Reconciliation
+
+At the close of a working day the session is reconciled against what actually
+happened. The activity trail is read as an ordered sequence rather than a
+category rollup, because the transitions between kinds of work carry more signal
+than the totals. Where the day diverged from what was expected, the reason is
+captured from the human and tagged: `exogenous` for an external demand,
+`endogenous` for an internal state worth modelling, `discretionary` for a genuine
+free choice, and `ambiguous` where a cause is suspected but has not been probed.
+
+The result is appended to the running summary as a YAML block, which keeps it
+harvestable later without a migration.
+
+The purpose is a day-planning loop whose rules are discovered rather than
+ordained. Rather than setting productivity rules in advance and measuring
+compliance, the system accumulates labelled cases and lets the patterns emerge.
+This only works if the tags are honest, which is why `ambiguous` exists: a
+mislabelled cause is worse than an unlabelled one, because it enters the record
+looking like evidence.
 
 ---
 
@@ -475,11 +594,17 @@ Understanding how this system emerged reveals important lessons about building e
 
 ### Phase 5: Ongoing Refinement
 
-**Current state**:
-- System is robust and operationally mature
-- New projects integrate smoothly using established patterns
-- Cross-project synthesis happens more naturally
-- Protocols continue to be refined based on experience
+**Current state (August 2026)**:
+- The system is in daily use and has been stable for months
+- New projects integrate using the established patterns
+- Protocols are still refined regularly, almost always in response to a specific
+  failure rather than in the abstract
+- A repository review in August 2026 found that the published *setup path* had
+  been broken for months in ways the author could not see, because his own
+  machine was already configured. The system worked; the instructions for
+  building it did not. That is a general hazard for anyone publishing a personal
+  system, and it is why the repository now ships a configuration audit script
+  (`env_audit.py`)
 
 ---
 
@@ -640,7 +765,14 @@ This section provides concrete templates others can use to build similar systems
 
 **Platform Requirements**:
 - **Windows** for the shell scripts as published. Administrator access is not needed.
-- **Claude Desktop** application, for the local shell server. A web or mobile session runs a reduced startup instead; see the reduced-startup section of the core protocols.
+- **Claude Desktop** application, for the local shell server. What decides the
+  startup path is whether the `windows-mcp` server is reachable, not which
+  interface is in use. A session without it runs a reduced startup that skips
+  the local scripts and works through the Notion, calendar, and mail connectors
+  instead. That covers web and mobile sessions, and also a Claude Desktop client
+  on macOS, which shares project instructions and chat history with the Windows
+  client but none of its tools, files, or local state. See the reduced-startup
+  section of the core protocols.
 - **Python 3.10+** installed and on PATH
 - **`uv` / `uvx`**, which runs windows-mcp
 
@@ -867,7 +999,24 @@ Organize protocols into modular documents for tiered loading.
 3. Configure CSV export for efficient status checks
 4. Document the workflow in Task Management protocol
 
-### Step 6: Start Using and Refining
+### Step 6: Configure the Scripts
+
+The scripts are written to be environment-neutral, so nearly everything specific
+to you is a configuration value rather than an edit.
+
+1. Copy `scripts/.env.example` to `scripts/.env`
+2. Fill in what applies: Notion integration token and database identifiers,
+   Google Calendar credentials, your timezone, your location for weather, any
+   secondary calendars using the `Label=Value` syntax
+3. Copy the `.example` JSON files alongside them and edit those for anything with
+   internal structure, such as news feeds and activity categories
+4. Leave anything you do not want blank. Unconfigured optional sections are
+   omitted from the startup report rather than failing
+5. Run `env_audit.py` and resolve what it reports
+6. Confirm `.env` and your real JSON config files are gitignored before your
+   first commit
+
+### Step 7: Start Using and Refining
 
 **Week 1**: Focus on structure
 - Create the core documents
@@ -996,7 +1145,7 @@ Regularly ask "is this helping?" Prune what doesn't serve the work.
 
 ### What We've Built
 
-This system represents sophisticated human-AI collaboration architecture:
+The system has four load-bearing parts:
 
 **Foundation**: Memory Base provides comprehensive persistent context
 **Structure**: Hub-and-spoke with consistent project patterns
@@ -1033,9 +1182,41 @@ For commercial licensing inquiries, contact the author.
 
 ---
 
-**Document Version**: 4.0
+**Document Version**: 5.0
 **Original Date**: December 24, 2025
-**Updated**: February 17, 2026
+**Updated**: August 13, 2026
+
+**Changes in v5.0**:
+
+A review found that the document had drifted from the system it describes. Some
+of the drift was factual and some was tonal.
+
+*Corrections*
+- The version block itself, which still claimed February 2026 after the document
+  had been edited in August
+- Removed the novelty claim from the Abstract, and the self-assessment from the
+  Conclusion and from Phase 5. The Phase 5 status is now dated and records the
+  August 2026 finding that the published setup path had been broken for months
+- Resolved a contradiction between Design Principle 9 and the Tiered Startup
+  section, which still described the manual sequence that `startup.py` replaced
+- Corrected the stated rationale for the CSV task export, which cited a Notion
+  limitation that no longer exists
+- Removed an unverifiable token-count figure
+- Corrected the reduced-startup description. The startup path is decided by
+  whether `windows-mcp` is reachable, not by which interface is in use, and it
+  covers a macOS desktop client as well as web and mobile sessions
+
+*Additions*
+- Design Principle 10, Configuration Over Forking, with the tri-state treatment
+  of absence
+- A Script Inventory covering all fourteen published scripts. Six of them were
+  undocumented here, though they appeared in the repository README
+- A Configuration section covering `.env`, the shared loader, precedence,
+  structured JSON configuration, and the conventions that keep an unconfigured
+  section distinguishable from a broken one
+- A Day Reconciliation section
+- Step 6 of the adaptation template. The template previously ran from hub
+  creation to daily use without a configuration step
 
 **Changes in v4.0**:
 - Added consolidated startup via `startup.py` (replaces multi-step manual sequence)
