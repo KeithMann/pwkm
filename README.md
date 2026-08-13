@@ -55,14 +55,27 @@ working session before it asks you to understand everything.
 | **gcal_create.py** | Google Calendar event creation over OAuth. |
 | **fetch_notion_tasks.py** | Export a Notion tasks database to CSV for fast local querying. |
 | **pwkm_env.py** | Shared `.env` loader. Every script calls it before reading configuration. |
+| **weather.py** | Local forecast for the startup report. Optional. |
+| **market.py** | Index summary plus any tracked holdings that moved beyond a threshold. Optional. |
+| **news.py** | RSS headlines, with feeds and exclusion filters in a JSON config file. Optional. |
+| **activitywatch.py** | Previous day's activity trail, for the day-reconciliation loop. Optional, and tri-state rather than boolean: see below. |
+| **goodreads_sync.py** | Reconciles a Goodreads shelf against a Notion reading database. Optional. |
+| **env_audit.py** | Audits your `.env` and reports what is missing, malformed, or set but never read. Run this first when something does not work. |
 
-**About `startup.py` and optional sections.** The published orchestrator is the
-real one, and it calls several helper scripts that are **not** included here:
-weather, market data, news, and activity tracking. Those are personal to the
-author's setup rather than part of the core system. Missing helpers are handled
-gracefully: the section reports that the script was not found and the run
-continues. Treat the absent sections as a menu of what you could add, not as
-breakage.
+**About `startup.py` and optional sections.** The orchestrator calls the five
+optional helpers above. All of them now ship with the repository; earlier
+versions of this README said they did not, which was true at the time and is no
+longer.
+
+Optional means genuinely optional. A helper you have not configured exits
+cleanly and its section is left out of the report. A helper you have configured
+*incorrectly* exits non-zero and says why. Those two outcomes are deliberately
+distinguishable, because silence and breakage should not look alike.
+
+`activitywatch.py` goes one step further and reads three states rather than two.
+`PWKM_ACTIVITYWATCH` may be `on`, `off`, or unset, because declining to be
+tracked and forgetting to configure tracking are different things, and `off`
+performs no probe at all. The probe is itself the access being declined.
 
 ### Protocols (`protocols/`)
 
@@ -102,6 +115,38 @@ editing anything.
 | `PWKM_TASKS_CSV` | Beside the scripts | Tasks CSV location; a fallback, since the scripts look beside themselves first |
 | `PWKM_HEALTH_DB` | Unset | Optional health database. Unset disables that section rather than erroring |
 | `PWKM_SECONDARY_CALENDARS` | Unset | Extra calendars to merge, optionally labelled: `Work=you@work.example.com` |
+
+**Optional sections**
+
+None of these is required. Leave a group unset and its section is omitted from
+the startup report.
+
+| Variable | Purpose |
+|---|---|
+| `PWKM_WEATHER_LAT` / `PWKM_WEATHER_LON` | Coordinates for the forecast |
+| `PWKM_WEATHER_LOCATION` | Display name for the location |
+| `PWKM_WEATHER_PROVIDER` | Which forecast source to use |
+| `PWKM_MARKET_INDICES` | Indices to summarise |
+| `PWKM_PORTFOLIO_TICKERS` | Holdings to check for movement |
+| `PWKM_MARKET_THRESHOLD` | Percentage move worth reporting |
+| `PWKM_NEWS_FEEDS_FILE` | Path to your news feed and filter config |
+| `PWKM_ACTIVITYWATCH` | `on`, `off`, or unset. See the note above |
+| `PWKM_ACTIVITYWATCH_URL` | Where the ActivityWatch server listens |
+| `PWKM_ACTIVITYWATCH_HOSTNAME` | Which host's buckets to read |
+| `PWKM_ACTIVITYWATCH_CATEGORIES` | Path to your activity category config |
+| `PWKM_READING_QUEUE_DB_ID` | Notion database for the reading queue |
+| `GOODREADS_USER_ID` | Goodreads user identifier |
+| `GOODREADS_RSS_KEY` | Goodreads RSS key for a private profile |
+
+**Structured configuration.** Anything with internal structure lives in its own
+JSON file rather than in `.env`. The repository ships
+`scripts/news_feeds.example.json` and
+`scripts/activitywatch_categories.example.json`; copy each one, edit the copy,
+and point the matching variable at it. The real files are gitignored, so your
+personal configuration never reaches a commit.
+
+Run `env_audit.py` once you have filled this in. It will tell you what is
+missing, what is malformed, and what you have set that nothing reads.
 
 ## Prerequisites
 
@@ -143,7 +188,15 @@ pwkm/
 │   ├── gcal_create.py                # Calendar event creation
 │   ├── fetch_notion_tasks.py         # Notion to CSV export
 │   ├── pwkm_env.py                   # Shared .env loader
+│   ├── weather.py                    # Forecast section (optional)
+│   ├── market.py                     # Market section (optional)
+│   ├── news.py                       # Headlines section (optional)
+│   ├── activitywatch.py              # Activity trail (optional)
+│   ├── goodreads_sync.py             # Reading queue sync (optional)
+│   ├── env_audit.py                  # Configuration audit
 │   ├── .env.example                  # Configuration template
+│   ├── news_feeds.example.json       # News feeds and filters
+│   ├── activitywatch_categories.example.json  # Activity categories
 │   └── requirements.txt              # Python dependencies
 ├── claude-desktop/                   # Claude Desktop configuration
 ├── notion/                           # Notion templates
@@ -155,7 +208,7 @@ pwkm/
 
 The system uses **tiered loading** to keep context consumption proportionate:
 
-- **Tier 1, every session:** `startup.py` runs date verification, calendar with classification, task status, audit triggers, and the session timer in one call. Core Protocols loaded from Notion.
+- **Tier 1, every session:** `startup.py` runs date verification, calendar with classification, task status, audit triggers, and the session timer in one call, plus whichever optional sections you have configured. Core Protocols loaded from Notion.
 - **Tier 2, on demand:** Session Lifecycle, Task Management, and Knowledge Work protocols, loaded when specific inputs or activities trigger them.
 - **Tier 3, on request:** Research Library, Work Patterns, Ideas, Recurring Themes, Session Summaries.
 
