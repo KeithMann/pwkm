@@ -97,7 +97,17 @@ divergences:
     - **Procedural checkpoint failures:** any environment, date, or protocol issues that surfaced (omit if none)
     - **Pointers:** file paths, page IDs, anything the next session will need quickly
 3. **Replace the contents** of the Session Handoff page. The previous handoff is overwritten. The per-day running summary files preserve the audit trail; **the handoff page exists for transition fidelity, not historical record.**
-4. **Confirm** that the handoff is in place so the session can end cleanly.
+4. **Create the session summary** for today, following the Session Summary Protocol below.
+   Run the idempotency check first, then **link the page into both hub indexes in this same
+   step**: the reverse-chronological index under the correct month, and every project bucket
+   named in the title. Creating the page without indexing it only converts a missing-page gap
+   into an unfindable-page gap.
+5. **Confirm** that the handoff and the session summary are both in place so the session can
+   end cleanly.
+
+**Why the handoff comes first.** If this procedure is interrupted partway, a missing handoff
+causes the next session to read a stale one and silently resume the wrong day. A missing
+session summary is caught by the weekly audit. The artifact that fails silently goes first.
 
 **Key principles:**
 - The handoff should be self-contained. Tomorrow's session should not need to read anything else to understand where things are.
@@ -214,7 +224,27 @@ Automatic initialization matters more than it looks. Without it, substantive wor
 
 ## Session Summary Protocol
 
-**At the end of each working session.**
+**At the end of each working session.** This protocol is invoked by step 4 of the handoff
+procedure above. **It is not self-triggering**, and that is worth stating plainly because it
+was the source of a real failure: for months this section said "at the end of each working
+session" while nothing in the end-of-session procedure referenced it, so in practice the
+weekly audit was the only thing that ever created a session summary. When the audit ran late,
+summaries silently accumulated.
+
+### One summary per calendar date
+
+A session that runs past midnight produces **one summary per calendar date**, matching the
+one-file-per-date convention for running summaries. Do not key summaries to sessions: the
+idempotency key is the date string in the title, and the enumerate-before-create pattern
+depends on it.
+
+### Same-day summaries are thinner, and that is the accepted trade
+
+A summary written at session end cannot carry hindsight; one written days later sometimes can,
+because a question left open on the day may have been answered since. That is a real loss. It
+is accepted because a thinner summary that exists beats a richer one that does not, and the
+idempotency procedure supports updating an existing page when a later session has more to
+add.
 
 ### Session Summaries parent page
 
